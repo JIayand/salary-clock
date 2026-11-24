@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var model: SalaryClockModel
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedCategory = "薪资与家庭"
 
     private var schedulePreset: Binding<String> {
         Binding(
@@ -18,40 +19,117 @@ struct SettingsView: View {
         )
     }
 
+    private var categories: [(String, String, String)] {
+        [("薪资与家庭", "yensign.circle", "薪资、家庭成员与税后计算"),
+         ("工作时间", "calendar", "工作制度、上下班与午休"),
+         ("桌面显示", "rectangle.on.rectangle", "挂件布局、统计与位置锁定"),
+         ("提醒与目标", "bell.badge", "愿望清单与下班提醒"),
+         ("外观与隐私", "paintpalette", "主题、透明度与隐私模式")]
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    salarySection
-                    familySection
-                    taxSection
-                    wishListSection
-                    scheduleSection
-                    timeSection
-                    displaySection
-                    privacySection
-                    reminderSection
-                    appearanceSection
-                    calculationNote
+            HStack(spacing: 0) {
+                sidebar
+                Rectangle().fill(Color.primary.opacity(0.07)).frame(width: 1)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        sectionHeading
+                        if selectedCategory == "薪资与家庭" {
+                            salarySection
+                            familySection
+                            taxSection
+                        } else if selectedCategory == "工作时间" {
+                            scheduleSection
+                            timeSection
+                            calculationNote
+                        } else if selectedCategory == "桌面显示" {
+                            displaySection
+                        } else if selectedCategory == "提醒与目标" {
+                            wishListSection
+                            reminderSection
+                        } else {
+                            appearanceSection
+                            privacySection
+                        }
+                    }
+                    .padding(22)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(18)
+                .scrollIndicators(.automatic)
+                .background(Color(nsColor: .windowBackgroundColor))
             }
-            .scrollIndicators(.automatic)
             footer
         }
-        .frame(width: 470, height: 680)
+        .frame(width: 790, height: 720)
         .background(Color(nsColor: .windowBackgroundColor))
+        .preferredColorScheme(nil)
+    }
+
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("设置分类")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 11).padding(.top, 18).padding(.bottom, 7)
+            ForEach(categories, id: \.0) { item in
+                let selected = selectedCategory == item.0
+                Button { withAnimation(.easeInOut(duration: 0.16)) { selectedCategory = item.0 } } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: item.1)
+                            .font(.system(size: 14, weight: .medium))
+                            .frame(width: 20)
+                            .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(item.0).font(.system(size: 12, weight: selected ? .semibold : .medium))
+                                .foregroundStyle(selected ? Color.primary : Color.primary.opacity(0.82))
+                            Text(item.2).font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                        if selected { RoundedRectangle(cornerRadius: 2).fill(Color.accentColor).frame(width: 3, height: 24) }
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 10)
+                    .background(selected ? Color.accentColor.opacity(0.10) : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 9))
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+            VStack(alignment: .leading, spacing: 4) {
+                Label("自动保存", systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 10, weight: .medium)).foregroundStyle(.green)
+                Text("修改后立即生效").font(.system(size: 9)).foregroundStyle(.tertiary)
+            }
+            .padding(11)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+            .padding(10)
+        }
+        .frame(width: 190)
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.72))
+    }
+
+    private var sectionHeading: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(selectedCategory).font(.system(size: 21, weight: .bold))
+            Text(categories.first(where: { $0.0 == selectedCategory })?.2 ?? "管理薪资时钟偏好设置")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+        }
+        .padding(.bottom, 2)
     }
 
     private var header: some View {
         HStack(alignment: .center, spacing: 10) {
-            Image(systemName: "slider.horizontal.3")
+            Image(systemName: "clock.badge.checkmark")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.tint)
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .background(LinearGradient(colors: [Color.accentColor, Color.accentColor.opacity(0.72)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 2) {
-                Text("薪资时钟设置").font(.system(size: 15, weight: .semibold))
-                Text("调整薪资计算、显示内容和外观").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text("薪资时钟").font(.system(size: 14, weight: .semibold))
+                Text("偏好设置").font(.system(size: 10)).foregroundStyle(.secondary)
             }
             Spacer()
             Button { SettingsWindowController.shared.close() } label: {
@@ -62,8 +140,9 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .help("关闭设置")
         }
-        .padding(.horizontal, 18).padding(.vertical, 13)
+        .padding(.horizontal, 20).padding(.vertical, 12)
         .background(.bar)
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.primary.opacity(0.07)).frame(height: 1) }
     }
 
     private var salarySection: some View {
@@ -101,39 +180,72 @@ struct SettingsView: View {
     }
 
     private var familySection: some View {
-        SettingsCard(title: "家庭成员薪资", subtitle: "为家人分别设置姓名和月薪，挂件中展示各自今日实时收入", icon: "person.2") {
+        SettingsCard(title: "家庭成员", subtitle: "每位成员独立设置月薪，桌面挂件同步展示实时收入", icon: "person.2.fill", eyebrow: "FAMILY") {
             if model.settings.familyMembers.isEmpty {
-                Text("尚未添加家庭成员。添加后会与本人收入一起显示。")
-                    .font(.system(size: 10)).foregroundStyle(.secondary)
-            }
-            ForEach($model.settings.familyMembers) { $member in
-                VStack(spacing: 7) {
-                    HStack(spacing: 8) {
-                        TextField("成员名称", text: $member.name)
-                            .textFieldStyle(.roundedBorder)
-                        Button(role: .destructive) {
-                            model.settings.familyMembers.removeAll { $0.id == member.id }
-                        } label: {
-                            Image(systemName: "trash").foregroundStyle(.secondary)
+                VStack(spacing: 9) {
+                    Image(systemName: "person.3.sequence.fill").font(.system(size: 26)).foregroundStyle(.secondary.opacity(0.7))
+                    Text("还没有家庭成员").font(.system(size: 12, weight: .semibold))
+                    Text("添加成员后，可在桌面挂件中查看每个人的实时收入")
+                        .font(.system(size: 10)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Button { addFamilyMember() } label: { Label("添加第一位成员", systemImage: "plus") }
+                        .buttonStyle(.borderedProminent).controlSize(.small)
+                }
+                .frame(maxWidth: .infinity).padding(.vertical, 16)
+            } else {
+                VStack(spacing: 9) {
+                    ForEach($model.settings.familyMembers) { $member in
+                        HStack(spacing: 11) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10).fill(Color.accentColor.opacity(0.11))
+                                Text(String(member.name.prefix(1)).isEmpty ? "家" : String(member.name.prefix(1)))
+                                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.accentColor)
+                            }
+                            .frame(width: 38, height: 38)
+                            VStack(alignment: .leading, spacing: 5) {
+                                TextField("成员名称", text: $member.name)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .textFieldStyle(.plain)
+                                HStack(spacing: 5) {
+                                    Text("月薪")
+                                    TextField("0", value: $member.monthlySalary, format: .number.precision(.fractionLength(0...2)))
+                                        .textFieldStyle(.plain).frame(width: 105)
+                                    Text("元")
+                                }
+                                .font(.system(size: 10)).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 4)
+                            Button(role: .destructive) {
+                                model.settings.familyMembers.removeAll { $0.id == member.id }
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 28, height: 28)
+                                    .background(Color.primary.opacity(0.045), in: Circle())
+                            }
+                            .buttonStyle(.plain).help("删除成员")
                         }
-                        .buttonStyle(.plain).help("删除家庭成员")
-                    }
-                    HStack {
-                        Text("月薪（元）").font(.system(size: 11))
-                        Spacer()
-                        TextField("月薪", value: $member.monthlySalary, format: .number.precision(.fractionLength(0...2)))
-                            .multilineTextAlignment(.trailing).textFieldStyle(.roundedBorder).frame(width: 142)
+                        .padding(11)
+                        .background(Color(nsColor: .controlBackgroundColor).opacity(0.78), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.045), lineWidth: 1))
                     }
                 }
-                if member.id != model.settings.familyMembers.last?.id { Divider() }
+                Button { addFamilyMember() } label: {
+                    Label("添加家庭成员", systemImage: "plus.circle.fill")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.bordered).controlSize(.regular)
             }
-            Button {
-                model.settings.familyMembers.append(FamilySalaryMember(name: "家庭成员 \(model.settings.familyMembers.count + 1)", monthlySalary: 10000))
-            } label: {
-                Label("添加家庭成员", systemImage: "plus.circle.fill")
-            }.buttonStyle(.borderless)
-            helpText("成员收入按当前工作日、工作时间、午休和节假日规则估算；暂不单独配置成员的社保、公积金及个税。隐私模式开启时会同时隐藏成员收入金额。")
+            HStack(alignment: .top, spacing: 7) {
+                Image(systemName: "info.circle.fill").foregroundStyle(.secondary)
+                helpText("成员收入按当前工作日、工作时间、午休和节假日规则估算；暂不单独配置成员的社保、公积金及个税。隐私模式开启时会同时隐藏成员收入金额。")
+            }
         }
+    }
+
+    private func addFamilyMember() {
+        let index = model.settings.familyMembers.count + 1
+        model.settings.familyMembers.append(FamilySalaryMember(name: "家庭成员 \(index)", monthlySalary: 10000))
     }
 
     private var taxSection: some View {
@@ -391,13 +503,15 @@ struct SettingsView: View {
 
     private var footer: some View {
         HStack {
-            Text("设置会自动保存").font(.system(size: 10)).foregroundStyle(.tertiary)
+            Label("所有更改自动保存", systemImage: "checkmark.circle.fill")
+                .font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
             Spacer()
             Button("完成") { dismiss() }.keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent).controlSize(.regular)
         }
-        .padding(.horizontal, 18).padding(.vertical, 12)
+        .padding(.horizontal, 20).padding(.vertical, 12)
         .background(.bar)
+        .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.07)).frame(height: 1) }
     }
 
     private func decimalPicker(selection: Binding<Int>, range: ClosedRange<Int>) -> some View {
@@ -432,23 +546,29 @@ private struct SettingsCard<Content: View>: View {
     let title: String
     let subtitle: String
     let icon: String
+    var eyebrow: String = "SETTINGS"
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
-            HStack(spacing: 8) {
-                Image(systemName: icon).font(.system(size: 13, weight: .semibold)).foregroundStyle(.tint).frame(width: 20)
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .top, spacing: 11) {
+                Image(systemName: icon).font(.system(size: 15, weight: .semibold)).foregroundStyle(.tint)
+                    .frame(width: 36, height: 36)
+                    .background(Color.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(eyebrow).font(.system(size: 8, weight: .bold, design: .rounded)).tracking(1.0).foregroundStyle(.tertiary)
                     Text(title).font(.system(size: 13, weight: .semibold))
                     Text(subtitle).font(.system(size: 10)).foregroundStyle(.secondary)
                 }
-                Spacer()
+                Spacer(minLength: 0)
             }
+            Rectangle().fill(Color.primary.opacity(0.055)).frame(height: 1)
             content
         }
-        .padding(13)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 11).stroke(Color.primary.opacity(0.055), lineWidth: 1))
+        .padding(16)
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.78), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color.primary.opacity(0.065), lineWidth: 1))
+        .shadow(color: .black.opacity(0.025), radius: 8, y: 3)
     }
 }
 

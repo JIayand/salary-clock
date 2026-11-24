@@ -181,36 +181,62 @@ struct FloatingWidgetView: View {
             if !stats.isEmpty {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], alignment: .leading, spacing: 9) {
                     ForEach(Array(stats.enumerated()), id: \.offset) { _, item in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.0).font(.system(size: 9)).foregroundStyle(foreground.opacity(0.48))
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(item.0).font(.system(size: 9, weight: .medium)).foregroundStyle(foreground.opacity(0.52))
                             Text(item.1).font(.system(size: 12, weight: .semibold, design: .rounded).monospacedDigit())
-                                .foregroundStyle(foreground.opacity(0.88)).lineLimit(1).minimumScaleFactor(0.8)
-                        }.frame(maxWidth: .infinity, alignment: .leading)
+                                .foregroundStyle(foreground.opacity(0.92)).lineLimit(1).minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10).padding(.vertical, 9)
+                        .background(foreground.opacity(0.045), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                 }
             }
 
             if !model.settings.familyMembers.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("家庭成员收入").font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(foreground.opacity(0.58))
+                let familySnapshots = model.settings.familyMembers.map { ($0, model.snapshot(for: $0)) }
+                let familyTotal = familySnapshots.reduce(0.0) { $0 + $1.1.earned }
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .center) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "person.2.fill").font(.system(size: 10, weight: .semibold))
+                            Text("家庭收入").font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundStyle(foreground.opacity(0.72))
                         Spacer()
-                        Text("实时估算").font(.system(size: 9)).foregroundStyle(foreground.opacity(0.38))
-                    }
-                    ForEach(model.settings.familyMembers) { member in
-                        let memberSnapshot = model.snapshot(for: member)
-                        HStack(spacing: 8) {
-                            Text(member.name).font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(foreground.opacity(0.86)).lineLimit(1)
-                            Spacer(minLength: 4)
-                            Text(model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, memberSnapshot.earned))
-                                .font(.system(size: 12, weight: .semibold, design: .rounded).monospacedDigit())
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("合计今日").font(.system(size: 8)).foregroundStyle(foreground.opacity(0.42))
+                            Text(model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, familyTotal))
+                                .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
                                 .foregroundStyle(accent)
                         }
                     }
+                    ForEach(familySnapshots, id: \.0.id) { member, memberSnapshot in
+                        HStack(spacing: 9) {
+                            Text(String(member.name.prefix(1)).isEmpty ? "家" : String(member.name.prefix(1)))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(accent)
+                                .frame(width: 27, height: 27)
+                                .background(accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(member.name.isEmpty ? "未命名成员" : member.name)
+                                    .font(.system(size: 10, weight: .semibold)).foregroundStyle(foreground.opacity(0.9)).lineLimit(1)
+                                Text("月薪 ¥\(Int(member.monthlySalary).formatted())")
+                                    .font(.system(size: 8, weight: .medium, design: .rounded)).foregroundStyle(foreground.opacity(0.42))
+                            }
+                            Spacer(minLength: 4)
+                            Text(model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, memberSnapshot.earned))
+                                .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
+                                .foregroundStyle(accent)
+                        }
+                        .padding(.horizontal, 9).padding(.vertical, 7)
+                        .background(foreground.opacity(0.045), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
                 }
-                .padding(.top, 2)
+                .padding(11)
+                .background(foreground.opacity(0.035), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 13).stroke(foreground.opacity(0.07), lineWidth: 1))
+                .padding(.top, 1)
             }
         }
         .padding(17)

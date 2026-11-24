@@ -148,8 +148,8 @@ final class SettingsWindowController {
         let panel = NSWindow(contentViewController: hosting)
         panel.title = "薪资时钟设置"
         panel.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        panel.setContentSize(NSSize(width: 470, height: 680))
-        panel.minSize = NSSize(width: 470, height: 560)
+        panel.setContentSize(NSSize(width: 790, height: 720))
+        panel.minSize = NSSize(width: 720, height: 620)
         panel.isReleasedWhenClosed = false
         panel.isMovableByWindowBackground = true
         panel.center()
