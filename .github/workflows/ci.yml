@@ -1,0 +1,21 @@
+name: Swift CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build macOS app
+        run: swift build -c release
+      - name: Run salary calculator checks
+        run: |
+          swiftc Sources/SalaryClock/SalaryCalculator.swift scripts/check-calculator.swift -o /tmp/salary-clock-calculator-check
+          /tmp/salary-clock-calculator-check
+      - name: Parse WidgetKit source
+        run: swiftc -frontend -parse WidgetExtension/SalaryClockWidget.swift
