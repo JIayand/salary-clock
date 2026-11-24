@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UserNotifications
 
 @main
 struct SalaryClockApp: App {
@@ -41,10 +42,13 @@ enum WidgetWindowActions {
 }
 
 /// A small menu-bar control keeps the borderless widget reachable after it is hidden.
-final class SalaryClockAppDelegate: NSObject, NSApplicationDelegate {
+final class SalaryClockAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var statusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // macOS 默认不会在应用处于前台时展示通知；显式声明前台展示方式。
+        UNUserNotificationCenter.current().delegate = self
+
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.title = "¥"
         item.button?.toolTip = "薪资时钟"
@@ -59,6 +63,14 @@ final class SalaryClockAppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(quit)
         item.menu = menu
         statusItem = item
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
     }
 
     @MainActor @objc private func toggleWidget() {

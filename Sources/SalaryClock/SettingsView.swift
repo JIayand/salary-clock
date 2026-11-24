@@ -233,7 +233,14 @@ struct SettingsView: View {
                     ForEach([0, 5, 10, 15, 20, 30, 40, 45, 50, 55], id: \.self) { Text(String(format: "%02d", $0)).tag($0) }
                 }.labelsHidden().frame(width: 78)
             }
-            helpText("启用后需要允许 macOS 通知权限。提醒每天在设定时间触发；修改工作时间不会自动改变提醒时间。")
+            HStack(spacing: 10) {
+                Button("发送测试通知") { model.sendTestReminder() }
+                    .buttonStyle(.bordered).controlSize(.small)
+                Text(model.reminderStatus)
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            helpText("启用后需要允许 macOS 通知权限。提醒每天在设定时间触发；修改工作时间不会自动改变提醒时间。若未收到通知，先点击“发送测试通知”检查权限和系统投递。")
         }
     }
 
