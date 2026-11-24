@@ -2,7 +2,8 @@ import SwiftUI
 
 struct FloatingWidgetView: View {
     @EnvironmentObject private var model: SalaryClockModel
-    @State private var showSettings = false
+    @State private var isHovering = false
+    @State private var isPinnedExpanded = false
 
     private var foreground: Color {
         switch model.settings.theme {
@@ -32,8 +33,76 @@ struct FloatingWidgetView: View {
         }
     }
 
+    private var isCompactCollapsed: Bool {
+        model.settings.compactMode && !isHovering && !isPinnedExpanded
+    }
+
     var body: some View {
         let snapshot = model.snapshot
+        Group {
+            if isCompactCollapsed {
+                compactContent(snapshot)
+            } else {
+                expandedContent(snapshot)
+            }
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            guard model.settings.compactMode else { return }
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                isHovering = hovering
+            }
+        }
+        .onChange(of: model.settings.compactMode) { enabled in
+            if !enabled { isPinnedExpanded = false }
+        }
+        .frame(minWidth: isCompactCollapsed ? 190 : 310, idealWidth: isCompactCollapsed ? 210 : 340, maxWidth: isCompactCollapsed ? 230 : 380)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func compactContent(_ snapshot: SalarySnapshot) -> some View {
+        VStack(spacing: 7) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 6) {
+                        Circle().fill(snapshot.isWorkingNow ? accent : foreground.opacity(0.35)).frame(width: 6, height: 6)
+                        Text("今日已赚").font(.system(size: 10, weight: .medium)).foregroundStyle(foreground.opacity(0.65))
+                    }
+                    Text(primaryValue(snapshot))
+                        .font(.system(size: 23, weight: .semibold, design: .rounded).monospacedDigit())
+                        .tracking(-0.8).foregroundStyle(accent).lineLimit(1).minimumScaleFactor(0.7)
+                        .contentTransition(numberTransition)
+                        .animation(numberAnimation, value: snapshot.earned)
+                        .animation(numberAnimation, value: snapshot.progress)
+                }
+                Spacer(minLength: 2)
+                VStack(alignment: .trailing, spacing: 5) {
+                    Button { SettingsWindowController.shared.show(model: model) } label: {
+                        Image(systemName: "slider.horizontal.3").font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(foreground.opacity(0.72)).frame(width: 22, height: 22)
+                    }.buttonStyle(.plain).help("显示与计算设置")
+                    Text(String(format: "%.*f%%", model.settings.percentDecimals, snapshot.progress * 100))
+                        .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(foreground.opacity(0.72))
+                }
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(foreground.opacity(0.12))
+                    Capsule().fill(accent).frame(width: proxy.size.width * snapshot.progress)
+                }
+            }.frame(height: 3)
+        }
+        .padding(.horizontal, 13).padding(.vertical, 10)
+        .background(background.opacity(model.settings.windowOpacity), in: Capsule())
+        .overlay(Capsule().stroke(foreground.opacity(0.1), lineWidth: 1))
+        .shadow(color: .black.opacity(0.2), radius: 14, y: 5)
+        .contentShape(Capsule())
+        .onTapGesture { isPinnedExpanded.toggle() }
+        .help("点击固定展开 / 收起，或将鼠标移入查看详情")
+    }
+
+    private func expandedContent(_ snapshot: SalarySnapshot) -> some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack(spacing: 7) {
                 Circle().fill(snapshot.isWorkingNow ? accent : foreground.opacity(0.35)).frame(width: 7, height: 7)
@@ -42,7 +111,18 @@ struct FloatingWidgetView: View {
                 Text(Date.now.formatted(.dateTime.month(.abbreviated).day()))
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(foreground.opacity(0.4))
-                Button { showSettings = true } label: {
+                Button {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                        model.settings.compactMode.toggle()
+                        isPinnedExpanded = false
+                        isHovering = false
+                    }
+                } label: {
+                    Image(systemName: model.settings.compactMode ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(foreground.opacity(0.7)).frame(width: 22, height: 22)
+                }.buttonStyle(.plain).help(model.settings.compactMode ? "关闭紧凑模式" : "启用紧凑模式")
+                Button { SettingsWindowController.shared.show(model: model) } label: {
                     Image(systemName: "slider.horizontal.3").font(.system(size: 13, weight: .medium))
                         .foregroundStyle(foreground.opacity(0.7)).frame(width: 24, height: 24)
                 }.buttonStyle(.plain).help("显示与计算设置")
@@ -53,10 +133,10 @@ struct FloatingWidgetView: View {
                     .font(.system(size: 11)).foregroundStyle(foreground.opacity(0.55))
                 Text(primaryValue(snapshot))
                     .font(.system(size: model.settings.mode == .money ? 36 : 42, weight: .semibold, design: .rounded).monospacedDigit())
-                    .tracking(-1.4).foregroundStyle(accent).contentTransition(.numericText())
+                    .tracking(-1.4).foregroundStyle(accent).contentTransition(numberTransition)
                     .minimumScaleFactor(0.62).lineLimit(1)
-                    .animation(.linear(duration: 0.09), value: snapshot.earned)
-                    .animation(.linear(duration: 0.09), value: snapshot.progress)
+                    .animation(numberAnimation, value: snapshot.earned)
+                    .animation(numberAnimation, value: snapshot.progress)
             }
 
             if model.settings.showProgress || model.settings.showWorkDuration {
@@ -69,7 +149,7 @@ struct FloatingWidgetView: View {
                                     .frame(width: proxy.size.width * snapshot.progress)
                             }
                         }.frame(height: 5)
-                        Text("今日进度 \(snapshot.progress * 100, specifier: "%.1f")%")
+                        Text("今日进度 " + String(format: "%.*f%%", model.settings.percentDecimals, snapshot.progress * 100))
                             .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
                             .foregroundStyle(foreground.opacity(0.55))
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -109,9 +189,16 @@ struct FloatingWidgetView: View {
         .overlay(RoundedRectangle(cornerRadius: 19).stroke(foreground.opacity(0.09), lineWidth: 1))
         .shadow(color: .black.opacity(0.2), radius: 18, y: 8)
         .foregroundStyle(foreground)
-        .sheet(isPresented: $showSettings) { SettingsView().environmentObject(model) }
-        .frame(minWidth: 310, idealWidth: 340, maxWidth: 380)
-        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var numberTransition: ContentTransition {
+        model.settings.numberAnimation == .rolling ? .numericText() : .opacity
+    }
+
+    private var numberAnimation: Animation {
+        model.settings.numberAnimation == .rolling
+            ? .snappy(duration: 0.22)
+            : .easeInOut(duration: 0.28)
     }
 
     private func statusText(_ snapshot: SalarySnapshot) -> String {
@@ -124,7 +211,7 @@ struct FloatingWidgetView: View {
     }
     private func primaryValue(_ s: SalarySnapshot) -> String {
         model.settings.mode == .percent
-            ? String(format: "%.*f%%", model.settings.decimals, s.progress * 100)
+            ? String(format: "%.*f%%", model.settings.percentDecimals, s.progress * 100)
             : String(format: "¥ %.*f", model.settings.decimals, s.earned)
     }
     private func money(_ value: Double) -> String { String(format: "¥ %.2f", value) }

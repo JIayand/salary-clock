@@ -144,7 +144,7 @@ struct SalaryClockWidgetView: View {
 
     private var primaryValue: String {
         if entry.settings.mode == .percent {
-            return String(format: "%.*f%%", entry.settings.decimals, entry.snapshot.progress * 100)
+            return String(format: "%.*f%%", entry.settings.percentDecimals, entry.snapshot.progress * 100)
         }
         return String(format: "¥ %.*f", entry.settings.decimals, entry.snapshot.earned)
     }

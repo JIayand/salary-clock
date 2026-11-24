@@ -64,9 +64,33 @@ struct CalculatorChecks {
         {"monthlySalary":12000,"workdays":[2,3,4,5,6],"startHour":9,"startMinute":0,"endHour":18,"endMinute":0,"lunchStartHour":12,"lunchStartMinute":0,"lunchEndHour":13,"lunchEndMinute":0,"mode":"金额","theme":"深空","decimals":4}
         """.data(using: .utf8)!
         let migrated = try! JSONDecoder().decode(SalarySettings.self, from: legacyJSON)
-        precondition(migrated.monthlySalary == 12000 && migrated.useChinaHolidayCalendar && migrated.windowOpacity == 0.96 && migrated.showWeekEarned && migrated.showMonthEarned && migrated.showProgress && migrated.showHourlyRate && migrated.showDailyRate && migrated.showWorkDuration,
+        precondition(migrated.monthlySalary == 12000 && migrated.useChinaHolidayCalendar && migrated.windowOpacity == 0.96 && migrated.showWeekEarned && migrated.showMonthEarned && migrated.showProgress && migrated.showHourlyRate && migrated.showDailyRate && migrated.showWorkDuration && !migrated.compactMode,
                      "旧版本配置向前兼容失败")
+        var compactSettings = migrated
+        compactSettings.compactMode = true
+        let compactData = try! JSONEncoder().encode(compactSettings)
+        let compactReloaded = try! JSONDecoder().decode(SalarySettings.self, from: compactData)
+        precondition(compactReloaded.compactMode, "紧凑模式配置持久化失败")
+        compactSettings.percentDecimals = 3
+        let percentData = try! JSONEncoder().encode(compactSettings)
+        let percentReloaded = try! JSONDecoder().decode(SalarySettings.self, from: percentData)
+        precondition(percentReloaded.percentDecimals == 3, "百分比小数位配置持久化失败")
+        precondition(migrated.percentDecimals == 1, "旧配置百分比小数位默认值迁移失败")
+        var taxSettings = SalarySettings()
+        taxSettings.monthlySalary = 10000
+        let expectedTax = (60000.0 * 0.10 - 2520) / 12
+        precondition(abs(SalaryCalculator.estimatedMonthlyTax(settings: taxSettings) - expectedTax) < 0.01,
+                         "月度个税估算错误")
+        taxSettings.monthlySocialInsurance = 1000
+        taxSettings.monthlySpecialDeductions = 2000
+        let reducedTax = SalaryCalculator.estimatedMonthlyTax(settings: taxSettings)
+        precondition(reducedTax < expectedTax, "社保和专项附加扣除应降低预计个税")
+        taxSettings.useAfterTaxSalary = true
+        let afterTaxSnapshot = SalaryCalculator.snapshot(settings: taxSettings, now: date(2026, 11, 24, 10), calendar: calendar)
+        precondition(afterTaxSnapshot.netMonthlySalary < taxSettings.monthlySalary, "税后工资应低于税前工资")
+        precondition(abs(afterTaxSnapshot.dailyRate - afterTaxSnapshot.netMonthlySalary / Double(afterTaxSnapshot.monthlyWorkdays)) < 0.01,
+                         "启用税后工资后日薪应按税后月薪计算")
 
-        print("通过：21 项检查（工作时段、午休、日薪时薪、本周与本月累计、周末、2026/2027 节假日及补班、月度工作日统计、日历开关、旧配置迁移）")
+        print("通过：29 项检查（薪资计算、工作时间、节假日与补班、配置兼容、紧凑模式、税后工资及动画设置）")
     }
 }

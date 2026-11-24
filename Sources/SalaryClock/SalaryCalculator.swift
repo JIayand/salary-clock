@@ -14,6 +14,7 @@ struct SalarySettings: Codable {
     var mode: DisplayMode = .money
     var theme: WidgetTheme = .midnight
     var decimals: Int = 4
+    var percentDecimals: Int = 1
     var useChinaHolidayCalendar: Bool = true
     var windowOpacity: Double = 0.96
     var showWeekEarned: Bool = true
@@ -22,12 +23,18 @@ struct SalarySettings: Codable {
     var showHourlyRate: Bool = true
     var showDailyRate: Bool = true
     var showWorkDuration: Bool = true
+    var compactMode: Bool = false
+    var useAfterTaxSalary: Bool = false
+    var monthlySocialInsurance: Double = 0
+    var monthlySpecialDeductions: Double = 0
+    var numberAnimation: NumberAnimationStyle = .rolling
 
     private enum CodingKeys: String, CodingKey {
         case monthlySalary, workdays, startHour, startMinute, endHour, endMinute
         case lunchStartHour, lunchStartMinute, lunchEndHour, lunchEndMinute
-        case mode, theme, decimals, useChinaHolidayCalendar, windowOpacity
-        case showWeekEarned, showMonthEarned, showProgress, showHourlyRate, showDailyRate, showWorkDuration
+        case mode, theme, decimals, percentDecimals, useChinaHolidayCalendar, windowOpacity
+        case showWeekEarned, showMonthEarned, showProgress, showHourlyRate, showDailyRate, showWorkDuration, compactMode
+        case useAfterTaxSalary, monthlySocialInsurance, monthlySpecialDeductions, numberAnimation
     }
 
     init() {}
@@ -47,6 +54,7 @@ struct SalarySettings: Codable {
         mode = try values.decodeIfPresent(DisplayMode.self, forKey: .mode) ?? .money
         theme = try values.decodeIfPresent(WidgetTheme.self, forKey: .theme) ?? .midnight
         decimals = try values.decodeIfPresent(Int.self, forKey: .decimals) ?? 4
+        percentDecimals = try values.decodeIfPresent(Int.self, forKey: .percentDecimals) ?? 1
         useChinaHolidayCalendar = try values.decodeIfPresent(Bool.self, forKey: .useChinaHolidayCalendar) ?? true
         windowOpacity = try values.decodeIfPresent(Double.self, forKey: .windowOpacity) ?? 0.96
         showWeekEarned = try values.decodeIfPresent(Bool.self, forKey: .showWeekEarned) ?? true
@@ -55,12 +63,22 @@ struct SalarySettings: Codable {
         showHourlyRate = try values.decodeIfPresent(Bool.self, forKey: .showHourlyRate) ?? true
         showDailyRate = try values.decodeIfPresent(Bool.self, forKey: .showDailyRate) ?? true
         showWorkDuration = try values.decodeIfPresent(Bool.self, forKey: .showWorkDuration) ?? true
+        compactMode = try values.decodeIfPresent(Bool.self, forKey: .compactMode) ?? false
+        useAfterTaxSalary = try values.decodeIfPresent(Bool.self, forKey: .useAfterTaxSalary) ?? false
+        monthlySocialInsurance = try values.decodeIfPresent(Double.self, forKey: .monthlySocialInsurance) ?? 0
+        monthlySpecialDeductions = try values.decodeIfPresent(Double.self, forKey: .monthlySpecialDeductions) ?? 0
+        numberAnimation = try values.decodeIfPresent(NumberAnimationStyle.self, forKey: .numberAnimation) ?? .rolling
     }
 }
 
 enum DisplayMode: String, Codable, CaseIterable {
     case money = "金额"
     case percent = "进度"
+}
+
+enum NumberAnimationStyle: String, Codable, CaseIterable {
+    case rolling = "数字滚动"
+    case fade = "平滑淡变"
 }
 
 enum WidgetTheme: String, Codable, CaseIterable {
@@ -87,6 +105,8 @@ struct SalarySnapshot {
     let hourlyRate: Double
     let weekEarned: Double
     let monthEarned: Double
+    let tax: Double
+    let netMonthlySalary: Double
 }
 
 enum ChinaWorkCalendar {
@@ -169,7 +189,10 @@ enum SalaryCalculator {
             : 0
         let elapsed = dayStatus.isWorkday ? min(total, max(0, elapsedRaw - elapsedLunch)) : 0
         let progress = total > 0 && dayStatus.isWorkday ? min(1, max(0, elapsed / total)) : 0
-        let dailyRate = monthlyWorkdays > 0 ? settings.monthlySalary / Double(monthlyWorkdays) : 0
+        let monthlyTax = estimatedMonthlyTax(settings: settings)
+        let netMonthlySalary = max(0, settings.monthlySalary - max(0, settings.monthlySocialInsurance) - monthlyTax)
+        let calculationSalary = settings.useAfterTaxSalary ? netMonthlySalary : settings.monthlySalary
+        let dailyRate = monthlyWorkdays > 0 ? calculationSalary / Double(monthlyWorkdays) : 0
         let earned = dailyRate * progress
         let hourlyRate = total > 0 ? dailyRate / total * 3600 : 0
         let todayStart = calendar.startOfDay(for: now)
@@ -197,7 +220,9 @@ enum SalaryCalculator {
             dailyRate: dailyRate,
             hourlyRate: hourlyRate,
             weekEarned: weekEarned,
-            monthEarned: monthEarned
+            monthEarned: monthEarned,
+            tax: monthlyTax,
+            netMonthlySalary: netMonthlySalary
         )
     }
 
@@ -234,6 +259,24 @@ enum SalaryCalculator {
         return totalEarned
     }
 
+    /// Steady-state monthly IIT estimate using the annual cumulative withholding brackets.
+    /// Assumes 12 equal salary months; social insurance and additional deductions are user supplied.
+    static func estimatedMonthlyTax(settings: SalarySettings) -> Double {
+        let monthlyTaxable = max(0, settings.monthlySalary - 5000
+            - max(0, settings.monthlySocialInsurance)
+            - max(0, settings.monthlySpecialDeductions))
+        let annualTaxable = monthlyTaxable * 12
+        let brackets: [(Double, Double, Double)] = [
+            (36000, 0.03, 0), (144000, 0.10, 2520), (300000, 0.20, 16920),
+            (420000, 0.25, 31920), (660000, 0.30, 52920),
+            (960000, 0.35, 85920), (Double.greatestFiniteMagnitude, 0.45, 181920)
+        ]
+        let annualTax = brackets.first(where: { annualTaxable <= $0.0 }).map {
+            annualTaxable * $1 - $2
+        } ?? 0
+        return max(0, annualTax / 12)
+    }
+
     private static func seconds(_ hour: Int, _ minute: Int) -> Double {
         Double(hour * 3600 + minute * 60)
     }
@@ -241,6 +284,6 @@ enum SalaryCalculator {
     private static func emptySnapshot() -> SalarySnapshot {
         SalarySnapshot(earned: 0, progress: 0, todayWorkSeconds: 0, elapsedWorkSeconds: 0,
                        monthlyWorkdays: 0, isWorkday: false, isWorkingNow: false,
-                       remainingSeconds: 0, isPublicHoliday: false, isMakeupWorkday: false, dailyRate: 0, hourlyRate: 0, weekEarned: 0, monthEarned: 0)
+                       remainingSeconds: 0, isPublicHoliday: false, isMakeupWorkday: false, dailyRate: 0, hourlyRate: 0, weekEarned: 0, monthEarned: 0, tax: 0, netMonthlySalary: 0)
     }
 }
