@@ -7,36 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		109FA22EE7D360C5C53D9DEB /* SalaryCalculator.swift.20261124013128.bak in Resources */ = {isa = PBXBuildFile; fileRef = 8DA557E503E60F1AC5F72DC0 /* SalaryCalculator.swift.20261124013128.bak */; };
-		1131A8A1E74BDDA33FEE2A46 /* SalaryCalculator.swift.20261124013813.bak in Resources */ = {isa = PBXBuildFile; fileRef = B21BF286821986DD15ACAA3B /* SalaryCalculator.swift.20261124013813.bak */; };
-		1971665A15CF9D54674A063C /* SalaryCalculator.swift.20261124013810.bak in Resources */ = {isa = PBXBuildFile; fileRef = AFC0C834957FA4E8A64EE57E /* SalaryCalculator.swift.20261124013810.bak */; };
 		21DD4FFAEDB7B74A300A1BB0 /* FloatingWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C2C8880BB48CF05E645632A /* FloatingWidgetView.swift */; };
-		2B5EBFC790DE730819E5AD32 /* FloatingWidgetView.swift.20261124014442.bak in Resources */ = {isa = PBXBuildFile; fileRef = A68D44C4DB88DD280BF068F3 /* FloatingWidgetView.swift.20261124014442.bak */; };
-		317894283C57025231C21D76 /* SalaryClockApp.swift.20261124014059.bak in Resources */ = {isa = PBXBuildFile; fileRef = 56B5714BAB92444B285A0F21 /* SalaryClockApp.swift.20261124014059.bak */; };
-		35461C518C553CF6DC185526 /* SalaryClockWidget.swift.20261124014654.bak in Resources */ = {isa = PBXBuildFile; fileRef = D54704CE3EC46AAA21CCB22D /* SalaryClockWidget.swift.20261124014654.bak */; };
-		3B7B381F45FA43D46485A46B /* SettingsView.swift.20261124012917.bak in Resources */ = {isa = PBXBuildFile; fileRef = FD47E105D961EF68E446E26E /* SettingsView.swift.20261124012917.bak */; };
-		3C453807F37A519E62626964 /* FloatingWidgetView.swift.20261124014446.bak in Resources */ = {isa = PBXBuildFile; fileRef = F69AD2B69C0474EB227B45C6 /* FloatingWidgetView.swift.20261124014446.bak */; };
+		3B1287E47395741A55FAB425 /* AppLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6950AB4BF92E72192443FDFE /* AppLocalization.swift */; };
 		42D8276E750187A49A546BF4 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71F3F4D89869BF29249CB6B8 /* SettingsView.swift */; };
-		4BCD61A466870AB914DF02AB /* SettingsView.swift.20261124014037.bak in Resources */ = {isa = PBXBuildFile; fileRef = CCD28DEDDCC4C60F636A5083 /* SettingsView.swift.20261124014037.bak */; };
-		4E5CA73FA71DE74E132A65D9 /* SalaryCalculator.swift.20261124013924.bak in Resources */ = {isa = PBXBuildFile; fileRef = F8FEEC45FE975852408BD969 /* SalaryCalculator.swift.20261124013924.bak */; };
-		535B4A7D20029EB9B9403CAC /* FloatingWidgetView.swift.20261124014003.bak in Resources */ = {isa = PBXBuildFile; fileRef = B1A8861171B6DE635C669127 /* FloatingWidgetView.swift.20261124014003.bak */; };
 		541E0701A3CE624075A47D21 /* SalaryCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8878DCAD67EB922CB51D939B /* SalaryCalculator.swift */; };
-		69813531B637D5089EF01840 /* SalaryClockWidget.swift.20261124014252.bak in Resources */ = {isa = PBXBuildFile; fileRef = C0EC79B6ED3C6494AE2E6901 /* SalaryClockWidget.swift.20261124014252.bak */; };
-		6A66A21A71FB5EDEDF9CF665 /* SalaryClockModel.swift.20261124013207.bak in Resources */ = {isa = PBXBuildFile; fileRef = F4AADD248F73AA61FFE86D21 /* SalaryClockModel.swift.20261124013207.bak */; };
 		6C36BA5B6CFD5024B5F994D5 /* SalaryCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8878DCAD67EB922CB51D939B /* SalaryCalculator.swift */; };
-		72281C7F50844DC8D3245E0A /* FloatingWidgetView.swift.20261124013129.bak in Resources */ = {isa = PBXBuildFile; fileRef = 3E86FF3CE8F51DCDCD12EAEF /* FloatingWidgetView.swift.20261124013129.bak */; };
-		76ED1867675171235771996F /* SalaryCalculator.swift.20261124013819.bak in Resources */ = {isa = PBXBuildFile; fileRef = 099EFBC1480277ACEEB23A4B /* SalaryCalculator.swift.20261124013819.bak */; };
-		7C5E88DA18D1EC9635BDE3FE /* SettingsView.swift.20261124013130.bak in Resources */ = {isa = PBXBuildFile; fileRef = 96D6F240513B35CFDFE7C993 /* SettingsView.swift.20261124013130.bak */; };
-		841237D8FDEA4EE43A3177E5 /* SalaryClockWidget.swift.20261124014258.bak in Resources */ = {isa = PBXBuildFile; fileRef = C5542D3580349313A5C3AADF /* SalaryClockWidget.swift.20261124014258.bak */; };
+		8BE2AECE35BF99A9CF1A08C7 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 6A1E6FD74C91F70EC5E548B5 /* AppIcon.icns */; };
 		AA24F506E6A8EACC6AEF4512 /* SalaryClockApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700EC1B88E6153371BEA66DE /* SalaryClockApp.swift */; };
-		AE1A2258E63E3160BB307355 /* SettingsView.swift.20261124012818.bak in Resources */ = {isa = PBXBuildFile; fileRef = DA35EB4113F0320D249CCFF9 /* SettingsView.swift.20261124012818.bak */; };
-		DCB94BAB692E85CF876181AD /* SalaryCalculator.swift.20261124012846.bak in Resources */ = {isa = PBXBuildFile; fileRef = 7D8A844F4519489C2ABBCE19 /* SalaryCalculator.swift.20261124012846.bak */; };
-		DD47FD474A7B49C2D600FA8A /* SalaryClockModel.swift.20261124013209.bak in Resources */ = {isa = PBXBuildFile; fileRef = 6C5917867FE540BED738BF74 /* SalaryClockModel.swift.20261124013209.bak */; };
-		E2C70D13EC7FAEBAB4605EB5 /* SalaryCalculator.swift.20261124013816.bak in Resources */ = {isa = PBXBuildFile; fileRef = 9714DC93A59F9CE0058DF203 /* SalaryCalculator.swift.20261124013816.bak */; };
-		E36319B40BA03D1C95BFEB76 /* SalaryCalculator.swift.20261124013814.bak in Resources */ = {isa = PBXBuildFile; fileRef = 97F821CD85E61CB7FB756C83 /* SalaryCalculator.swift.20261124013814.bak */; };
-		EDD179DE1F8CA979695A836D /* SalaryCalculator.swift.20261124013811.bak in Resources */ = {isa = PBXBuildFile; fileRef = CC1AA4FD6FE053C857C09C9E /* SalaryCalculator.swift.20261124013811.bak */; };
-		F4E3730C34E86DCD965B2A1A /* SalaryCalculator.swift.20261124013818.bak in Resources */ = {isa = PBXBuildFile; fileRef = 1FF1B6C9A97400765E05ADAC /* SalaryCalculator.swift.20261124013818.bak */; };
-		F8266F1AAF24937FEF123316 /* SettingsView.swift.20261124012814.bak in Resources */ = {isa = PBXBuildFile; fileRef = E0A69D723CE189C0AADD5C09 /* SettingsView.swift.20261124012814.bak */; };
+		F281CC65CDC8135D5A3295DC /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = F06C533C156E9B407E2F3738 /* Localizable.strings */; };
+		F498C6F727020FC33AE5E7D5 /* AppIcon.svg in Resources */ = {isa = PBXBuildFile; fileRef = 03A63E4351F651EA95E085FC /* AppIcon.svg */; };
 		F86D3884DFF798C55522895A /* SalaryClockWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D2A0D739F13797FC5E0D2E1 /* SalaryClockWidget.swift */; };
 		FA0076E304F29BEBC4431DF5 /* SalaryClockModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD28A2A8B166C21297A8CE9D /* SalaryClockModel.swift */; };
 		FA2F96C7ED024C83495CEB2B /* SalaryClockWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 859F67A5D32500162903CB2D /* SalaryClockWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -67,71 +46,26 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		099EFBC1480277ACEEB23A4B /* SalaryCalculator.swift.20261124013819.bak */ = {isa = PBXFileReference; path = SalaryCalculator.swift.20261124013819.bak; sourceTree = "<group>"; };
-		1FF1B6C9A97400765E05ADAC /* SalaryCalculator.swift.20261124013818.bak */ = {isa = PBXFileReference; path = SalaryCalculator.swift.20261124013818.bak; sourceTree = "<group>"; };
-		3E86FF3CE8F51DCDCD12EAEF /* FloatingWidgetView.swift.20261124013129.bak */ = {isa = PBXFileReference; path = FloatingWidgetView.swift.20261124013129.bak; sourceTree = "<group>"; };
+		03A63E4351F651EA95E085FC /* AppIcon.svg */ = {isa = PBXFileReference; path = AppIcon.svg; sourceTree = "<group>"; };
 		4C2C8880BB48CF05E645632A /* FloatingWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingWidgetView.swift; sourceTree = "<group>"; };
-		56B5714BAB92444B285A0F21 /* SalaryClockApp.swift.20261124014059.bak */ = {isa = PBXFileReference; path = SalaryClockApp.swift.20261124014059.bak; sourceTree = "<group>"; };
-		6C5917867FE540BED738BF74 /* SalaryClockModel.swift.20261124013209.bak */ = {isa = PBXFileReference; path = SalaryClockModel.swift.20261124013209.bak; sourceTree = "<group>"; };
+		4DCD12C455789B09770DBF13 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		6950AB4BF92E72192443FDFE /* AppLocalization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLocalization.swift; sourceTree = "<group>"; };
+		6A1E6FD74C91F70EC5E548B5 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		700EC1B88E6153371BEA66DE /* SalaryClockApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalaryClockApp.swift; sourceTree = "<group>"; };
 		71F3F4D89869BF29249CB6B8 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		7D8A844F4519489C2ABBCE19 /* SalaryCalculator.swift.20261124012846.bak */ = {isa = PBXFileReference; path = SalaryCalculator.swift.20261124012846.bak; sourceTree = "<group>"; };
+		78B3621B73429526595DEC16 /* en */ = {isa = PBXFileReference; name = en; path = en.lproj/.backups; sourceTree = "<group>"; };
+		8119CA196A0B608DF73EBF15 /* zh-Hant */ = {isa = PBXFileReference; name = "zh-Hant"; path = "zh-Hant.lproj/.backups"; sourceTree = "<group>"; };
+		8366C1A6669FC24AAF196189 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		845ED67506E62A0BB6D3D7FB /* SalaryClock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SalaryClock.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		859F67A5D32500162903CB2D /* SalaryClockWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SalaryClockWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		8878DCAD67EB922CB51D939B /* SalaryCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalaryCalculator.swift; sourceTree = "<group>"; };
-		8DA557E503E60F1AC5F72DC0 /* SalaryCalculator.swift.20261124013128.bak */ = {isa = PBXFileReference; path = SalaryCalculator.swift.20261124013128.bak; sourceTree = "<group>"; };
-		96D6F240513B35CFDFE7C993 /* SettingsView.swift.20261124013130.bak */ = {isa = PBXFileReference; path = SettingsView.swift.20261124013130.bak; sourceTree = "<group>"; };
-		9714DC93A59F9CE0058DF203 /* SalaryCalculator.swift.20261124013816.bak */ = {isa = PBXFileReference; path = SalaryCalculator.swift.20261124013816.bak; sourceTree = "<group>"; };
-		97F821CD85E61CB7FB756C83 /* SalaryCalculator.swift.20261124013814.bak */ = {isa = PBXFileReference; path = SalaryCalculator.swift.20261124013814.bak; sourceTree = "<group>"; };
 		9D2A0D739F13797FC5E0D2E1 /* SalaryClockWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalaryClockWidget.swift; sourceTree = "<group>"; };
-		A68D44C4DB88DD280BF068F3 /* FloatingWidgetView.swift.20261124014442.bak */ = {isa = PBXFileReference; path = FloatingWidgetView.swift.20261124014442.bak; sourceTree = "<group>"; };
-		AFC0C834957FA4E8A64EE57E /* SalaryCalculator.swift.20261124013810.bak */ = {isa = PBXFileReference; path = SalaryCalculator.swift.20261124013810.bak; sourceTree = "<group>"; };
-		B1A8861171B6DE635C669127 /* FloatingWidgetView.swift.20261124014003.bak */ = {isa = PBXFileReference; path = FloatingWidgetView.swift.20261124014003.bak; sourceTree = "<group>"; };
-		B21BF286821986DD15ACAA3B /* SalaryCalculator.swift.20261124013813.bak */ = {isa = PBXFileReference; path = SalaryCalculator.swift.20261124013813.bak; sourceTree = "<group>"; };
-		C0EC79B6ED3C6494AE2E6901 /* SalaryClockWidget.swift.20261124014252.bak */ = {isa = PBXFileReference; path = SalaryClockWidget.swift.20261124014252.bak; sourceTree = "<group>"; };
-		C5542D3580349313A5C3AADF /* SalaryClockWidget.swift.20261124014258.bak */ = {isa = PBXFileReference; path = SalaryClockWidget.swift.20261124014258.bak; sourceTree = "<group>"; };
-		CC1AA4FD6FE053C857C09C9E /* SalaryCalculator.swift.20261124013811.bak */ = {isa = PBXFileReference; path = SalaryCalculator.swift.20261124013811.bak; sourceTree = "<group>"; };
-		CCD28DEDDCC4C60F636A5083 /* SettingsView.swift.20261124014037.bak */ = {isa = PBXFileReference; path = SettingsView.swift.20261124014037.bak; sourceTree = "<group>"; };
-		D54704CE3EC46AAA21CCB22D /* SalaryClockWidget.swift.20261124014654.bak */ = {isa = PBXFileReference; path = SalaryClockWidget.swift.20261124014654.bak; sourceTree = "<group>"; };
-		DA35EB4113F0320D249CCFF9 /* SettingsView.swift.20261124012818.bak */ = {isa = PBXFileReference; path = SettingsView.swift.20261124012818.bak; sourceTree = "<group>"; };
-		E0A69D723CE189C0AADD5C09 /* SettingsView.swift.20261124012814.bak */ = {isa = PBXFileReference; path = SettingsView.swift.20261124012814.bak; sourceTree = "<group>"; };
-		F4AADD248F73AA61FFE86D21 /* SalaryClockModel.swift.20261124013207.bak */ = {isa = PBXFileReference; path = SalaryClockModel.swift.20261124013207.bak; sourceTree = "<group>"; };
-		F69AD2B69C0474EB227B45C6 /* FloatingWidgetView.swift.20261124014446.bak */ = {isa = PBXFileReference; path = FloatingWidgetView.swift.20261124014446.bak; sourceTree = "<group>"; };
-		F8FEEC45FE975852408BD969 /* SalaryCalculator.swift.20261124013924.bak */ = {isa = PBXFileReference; path = SalaryCalculator.swift.20261124013924.bak; sourceTree = "<group>"; };
+		AD8F337669A4EF4929047A15 /* zh-Hans */ = {isa = PBXFileReference; name = "zh-Hans"; path = "zh-Hans.lproj/.backups"; sourceTree = "<group>"; };
+		E74BB2350237D1E9158FFB4F /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		FD28A2A8B166C21297A8CE9D /* SalaryClockModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalaryClockModel.swift; sourceTree = "<group>"; };
-		FD47E105D961EF68E446E26E /* SettingsView.swift.20261124012917.bak */ = {isa = PBXFileReference; path = SettingsView.swift.20261124012917.bak; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		080BB1C84B26D36AD4740FB1 /* .backups */ = {
-			isa = PBXGroup;
-			children = (
-				3E86FF3CE8F51DCDCD12EAEF /* FloatingWidgetView.swift.20261124013129.bak */,
-				B1A8861171B6DE635C669127 /* FloatingWidgetView.swift.20261124014003.bak */,
-				A68D44C4DB88DD280BF068F3 /* FloatingWidgetView.swift.20261124014442.bak */,
-				F69AD2B69C0474EB227B45C6 /* FloatingWidgetView.swift.20261124014446.bak */,
-				7D8A844F4519489C2ABBCE19 /* SalaryCalculator.swift.20261124012846.bak */,
-				8DA557E503E60F1AC5F72DC0 /* SalaryCalculator.swift.20261124013128.bak */,
-				AFC0C834957FA4E8A64EE57E /* SalaryCalculator.swift.20261124013810.bak */,
-				CC1AA4FD6FE053C857C09C9E /* SalaryCalculator.swift.20261124013811.bak */,
-				B21BF286821986DD15ACAA3B /* SalaryCalculator.swift.20261124013813.bak */,
-				97F821CD85E61CB7FB756C83 /* SalaryCalculator.swift.20261124013814.bak */,
-				9714DC93A59F9CE0058DF203 /* SalaryCalculator.swift.20261124013816.bak */,
-				1FF1B6C9A97400765E05ADAC /* SalaryCalculator.swift.20261124013818.bak */,
-				099EFBC1480277ACEEB23A4B /* SalaryCalculator.swift.20261124013819.bak */,
-				F8FEEC45FE975852408BD969 /* SalaryCalculator.swift.20261124013924.bak */,
-				56B5714BAB92444B285A0F21 /* SalaryClockApp.swift.20261124014059.bak */,
-				F4AADD248F73AA61FFE86D21 /* SalaryClockModel.swift.20261124013207.bak */,
-				6C5917867FE540BED738BF74 /* SalaryClockModel.swift.20261124013209.bak */,
-				E0A69D723CE189C0AADD5C09 /* SettingsView.swift.20261124012814.bak */,
-				DA35EB4113F0320D249CCFF9 /* SettingsView.swift.20261124012818.bak */,
-				FD47E105D961EF68E446E26E /* SettingsView.swift.20261124012917.bak */,
-				96D6F240513B35CFDFE7C993 /* SettingsView.swift.20261124013130.bak */,
-				CCD28DEDDCC4C60F636A5083 /* SettingsView.swift.20261124014037.bak */,
-			);
-			path = .backups;
-			sourceTree = "<group>";
-		};
 		1D3C8A441031F42FC47089A5 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -144,43 +78,52 @@
 		25E30FFA8826198FCBB7DF8C = {
 			isa = PBXGroup;
 			children = (
+				9883B7D556E257A664BDB2FC /* Localization */,
+				7E68C2A84C9E8A5DD8520C54 /* Resources */,
 				55F0C2C9B729A62ED90A4827 /* SalaryClock */,
 				86755E219D9377A3C3811289 /* WidgetExtension */,
 				1D3C8A441031F42FC47089A5 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		308B413F7412900B13E231AE /* .backups */ = {
-			isa = PBXGroup;
-			children = (
-				C0EC79B6ED3C6494AE2E6901 /* SalaryClockWidget.swift.20261124014252.bak */,
-				C5542D3580349313A5C3AADF /* SalaryClockWidget.swift.20261124014258.bak */,
-				D54704CE3EC46AAA21CCB22D /* SalaryClockWidget.swift.20261124014654.bak */,
-			);
-			path = .backups;
-			sourceTree = "<group>";
-		};
 		55F0C2C9B729A62ED90A4827 /* SalaryClock */ = {
 			isa = PBXGroup;
 			children = (
+				6950AB4BF92E72192443FDFE /* AppLocalization.swift */,
 				4C2C8880BB48CF05E645632A /* FloatingWidgetView.swift */,
 				8878DCAD67EB922CB51D939B /* SalaryCalculator.swift */,
 				700EC1B88E6153371BEA66DE /* SalaryClockApp.swift */,
 				FD28A2A8B166C21297A8CE9D /* SalaryClockModel.swift */,
 				71F3F4D89869BF29249CB6B8 /* SettingsView.swift */,
-				080BB1C84B26D36AD4740FB1 /* .backups */,
 			);
 			name = SalaryClock;
 			path = Sources/SalaryClock;
+			sourceTree = "<group>";
+		};
+		7E68C2A84C9E8A5DD8520C54 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				6A1E6FD74C91F70EC5E548B5 /* AppIcon.icns */,
+				03A63E4351F651EA95E085FC /* AppIcon.svg */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		86755E219D9377A3C3811289 /* WidgetExtension */ = {
 			isa = PBXGroup;
 			children = (
 				9D2A0D739F13797FC5E0D2E1 /* SalaryClockWidget.swift */,
-				308B413F7412900B13E231AE /* .backups */,
 			);
 			path = WidgetExtension;
+			sourceTree = "<group>";
+		};
+		9883B7D556E257A664BDB2FC /* Localization */ = {
+			isa = PBXGroup;
+			children = (
+				4D490BE46FD4F5CF12E4A492 /* .backups */,
+				F06C533C156E9B407E2F3738 /* Localizable.strings */,
+			);
+			path = Localization;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -211,7 +154,6 @@
 			buildConfigurationList = 5F5CF42CFC2342292E1388C4 /* Build configuration list for PBXNativeTarget "SalaryClockWidgetExtension" */;
 			buildPhases = (
 				7E193AB0ECA5602E582CAF50 /* Sources */,
-				5B5D838A4A4A10EE05300568 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -233,6 +175,14 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					64FC51530E0FFD6073065699 = {
+						DevelopmentTeam = WXFKXAFBJ8;
+						ProvisioningStyle = Automatic;
+					};
+					65A6FD675AF43A51DAD9B339 = {
+						DevelopmentTeam = WXFKXAFBJ8;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = C4083AB4E9CFEC76081FFC38 /* Build configuration list for PBXProject "SalaryClock" */;
@@ -241,6 +191,8 @@
 			knownRegions = (
 				Base,
 				en,
+				"zh-Hans",
+				"zh-Hant",
 			);
 			mainGroup = 25E30FFA8826198FCBB7DF8C;
 			minimizedProjectReferenceProxies = 1;
@@ -256,42 +208,13 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		5B5D838A4A4A10EE05300568 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				69813531B637D5089EF01840 /* SalaryClockWidget.swift.20261124014252.bak in Resources */,
-				841237D8FDEA4EE43A3177E5 /* SalaryClockWidget.swift.20261124014258.bak in Resources */,
-				35461C518C553CF6DC185526 /* SalaryClockWidget.swift.20261124014654.bak in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		984ED7F320E09F338423345F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				72281C7F50844DC8D3245E0A /* FloatingWidgetView.swift.20261124013129.bak in Resources */,
-				535B4A7D20029EB9B9403CAC /* FloatingWidgetView.swift.20261124014003.bak in Resources */,
-				2B5EBFC790DE730819E5AD32 /* FloatingWidgetView.swift.20261124014442.bak in Resources */,
-				3C453807F37A519E62626964 /* FloatingWidgetView.swift.20261124014446.bak in Resources */,
-				DCB94BAB692E85CF876181AD /* SalaryCalculator.swift.20261124012846.bak in Resources */,
-				109FA22EE7D360C5C53D9DEB /* SalaryCalculator.swift.20261124013128.bak in Resources */,
-				1971665A15CF9D54674A063C /* SalaryCalculator.swift.20261124013810.bak in Resources */,
-				EDD179DE1F8CA979695A836D /* SalaryCalculator.swift.20261124013811.bak in Resources */,
-				1131A8A1E74BDDA33FEE2A46 /* SalaryCalculator.swift.20261124013813.bak in Resources */,
-				E36319B40BA03D1C95BFEB76 /* SalaryCalculator.swift.20261124013814.bak in Resources */,
-				E2C70D13EC7FAEBAB4605EB5 /* SalaryCalculator.swift.20261124013816.bak in Resources */,
-				F4E3730C34E86DCD965B2A1A /* SalaryCalculator.swift.20261124013818.bak in Resources */,
-				76ED1867675171235771996F /* SalaryCalculator.swift.20261124013819.bak in Resources */,
-				4E5CA73FA71DE74E132A65D9 /* SalaryCalculator.swift.20261124013924.bak in Resources */,
-				317894283C57025231C21D76 /* SalaryClockApp.swift.20261124014059.bak in Resources */,
-				6A66A21A71FB5EDEDF9CF665 /* SalaryClockModel.swift.20261124013207.bak in Resources */,
-				DD47FD474A7B49C2D600FA8A /* SalaryClockModel.swift.20261124013209.bak in Resources */,
-				F8266F1AAF24937FEF123316 /* SettingsView.swift.20261124012814.bak in Resources */,
-				AE1A2258E63E3160BB307355 /* SettingsView.swift.20261124012818.bak in Resources */,
-				3B7B381F45FA43D46485A46B /* SettingsView.swift.20261124012917.bak in Resources */,
-				7C5E88DA18D1EC9635BDE3FE /* SettingsView.swift.20261124013130.bak in Resources */,
-				4BCD61A466870AB914DF02AB /* SettingsView.swift.20261124014037.bak in Resources */,
+				8BE2AECE35BF99A9CF1A08C7 /* AppIcon.icns in Resources */,
+				F498C6F727020FC33AE5E7D5 /* AppIcon.svg in Resources */,
+				F281CC65CDC8135D5A3295DC /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -302,6 +225,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3B1287E47395741A55FAB425 /* AppLocalization.swift in Sources */,
 				21DD4FFAEDB7B74A300A1BB0 /* FloatingWidgetView.swift in Sources */,
 				541E0701A3CE624075A47D21 /* SalaryCalculator.swift in Sources */,
 				AA24F506E6A8EACC6AEF4512 /* SalaryClockApp.swift in Sources */,
@@ -329,23 +253,50 @@
 		};
 /* End PBXTargetDependency section */
 
+/* Begin PBXVariantGroup section */
+		4D490BE46FD4F5CF12E4A492 /* .backups */ = {
+			isa = PBXVariantGroup;
+			children = (
+				78B3621B73429526595DEC16 /* en */,
+				AD8F337669A4EF4929047A15 /* zh-Hans */,
+				8119CA196A0B608DF73EBF15 /* zh-Hant */,
+			);
+			name = .backups;
+			sourceTree = "<group>";
+		};
+		F06C533C156E9B407E2F3738 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				4DCD12C455789B09770DBF13 /* en */,
+				8366C1A6669FC24AAF196189 /* zh-Hans */,
+				E74BB2350237D1E9158FFB4F /* zh-Hant */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
 /* Begin XCBuildConfiguration section */
 		4C7559DB3FDF57122328A168 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Configuration/SalaryClock.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1.0.0;
+				DEVELOPMENT_TEAM = WXFKXAFBJ8;
 				ENABLE_APP_SANDBOX = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "薪资时钟";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/SalaryClock-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jyd.salaryclock;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jyd.salaryclock.desktop;
 				PRODUCT_NAME = SalaryClock;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
@@ -476,16 +427,20 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = Configuration/SalaryClockWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				CURRENT_PROJECT_VERSION = 1.0.0;
+				DEVELOPMENT_TEAM = WXFKXAFBJ8;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/SalaryClockWidget-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jyd.salaryclock.widget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jyd.salaryclock.desktop.widget;
 				PRODUCT_NAME = SalaryClockWidgetExtension;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -498,17 +453,21 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Configuration/SalaryClock.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1.0.0;
+				DEVELOPMENT_TEAM = WXFKXAFBJ8;
 				ENABLE_APP_SANDBOX = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "薪资时钟";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/SalaryClock-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jyd.salaryclock;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jyd.salaryclock.desktop;
 				PRODUCT_NAME = SalaryClock;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
@@ -520,16 +479,20 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = Configuration/SalaryClockWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				CURRENT_PROJECT_VERSION = 1.0.0;
+				DEVELOPMENT_TEAM = WXFKXAFBJ8;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/SalaryClockWidget-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jyd.salaryclock.widget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jyd.salaryclock.desktop.widget;
 				PRODUCT_NAME = SalaryClockWidgetExtension;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;

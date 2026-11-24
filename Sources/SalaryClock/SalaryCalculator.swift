@@ -1,7 +1,25 @@
 import Foundation
 
+enum AppLanguage: String, Codable, CaseIterable, Identifiable {
+    case simplifiedChinese = "zh-Hans"
+    case traditionalChinese = "zh-Hant"
+    case english = "en"
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .simplifiedChinese: return "简体中文"
+        case .traditionalChinese: return "繁體中文"
+        case .english: return "English"
+        }
+    }
+    var locale: Locale { Locale(identifier: rawValue) }
+}
+
 struct SalarySettings: Codable {
+    var language: AppLanguage = .simplifiedChinese
     var monthlySalary: Double = 10000
+    var yearEndBonus: Double = 0
     var workdays: Set<Int> = [2, 3, 4, 5, 6] // Calendar weekday: Sun=1 ... Sat=7
     var startHour: Int = 9
     var startMinute: Int = 0
@@ -15,6 +33,7 @@ struct SalarySettings: Codable {
     var theme: WidgetTheme = .midnight
     var decimals: Int = 4
     var percentDecimals: Int = 1
+    var secondRateDecimals: Int = 4
     var useChinaHolidayCalendar: Bool = true
     var windowOpacity: Double = 0.96
     var showWeekEarned: Bool = true
@@ -22,7 +41,11 @@ struct SalarySettings: Codable {
     var showProgress: Bool = true
     var showHourlyRate: Bool = true
     var showDailyRate: Bool = true
+    var showSecondRate: Bool = false
+    var showAnnualSalary: Bool = false
     var showWorkDuration: Bool = true
+    var durationDisplay: DurationDisplay = .hoursMinutesSeconds
+    var hourglassAnimationEnabled: Bool = false
     var compactMode: Bool = false
     var useAfterTaxSalary: Bool = false
     var socialInsuranceBase: Double = 10000
@@ -38,22 +61,25 @@ struct SalarySettings: Codable {
     var wishList: [SalaryWish] = []
     var familyMembers: [FamilySalaryMember] = []
     var windowLocked: Bool = false
+    var alwaysOnTop: Bool = false
 
     private enum CodingKeys: String, CodingKey {
-        case monthlySalary, workdays, startHour, startMinute, endHour, endMinute
+        case monthlySalary, yearEndBonus, workdays, startHour, startMinute, endHour, endMinute
         case lunchStartHour, lunchStartMinute, lunchEndHour, lunchEndMinute
-        case mode, theme, decimals, percentDecimals, useChinaHolidayCalendar, windowOpacity
-        case showWeekEarned, showMonthEarned, showProgress, showHourlyRate, showDailyRate, showWorkDuration, compactMode
+        case mode, theme, decimals, percentDecimals, secondRateDecimals, useChinaHolidayCalendar, windowOpacity
+        case showWeekEarned, showMonthEarned, showProgress, showHourlyRate, showDailyRate, showSecondRate, showAnnualSalary, showWorkDuration, durationDisplay, hourglassAnimationEnabled, compactMode
         case useAfterTaxSalary, socialInsuranceBase, socialInsuranceRate, housingFundBase, housingFundRate, monthlySpecialDeductions, numberAnimation
         case privacyMode, afterWorkReminderEnabled, afterWorkReminderHour, afterWorkReminderMinute, wishList
-        case familyMembers, windowLocked
+        case familyMembers, windowLocked, alwaysOnTop, language
     }
 
     init() {}
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        language = try values.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .simplifiedChinese
         monthlySalary = try values.decodeIfPresent(Double.self, forKey: .monthlySalary) ?? 10000
+        yearEndBonus = try values.decodeIfPresent(Double.self, forKey: .yearEndBonus) ?? 0
         workdays = try values.decodeIfPresent(Set<Int>.self, forKey: .workdays) ?? [2, 3, 4, 5, 6]
         startHour = try values.decodeIfPresent(Int.self, forKey: .startHour) ?? 9
         startMinute = try values.decodeIfPresent(Int.self, forKey: .startMinute) ?? 0
@@ -67,6 +93,7 @@ struct SalarySettings: Codable {
         theme = try values.decodeIfPresent(WidgetTheme.self, forKey: .theme) ?? .midnight
         decimals = try values.decodeIfPresent(Int.self, forKey: .decimals) ?? 4
         percentDecimals = try values.decodeIfPresent(Int.self, forKey: .percentDecimals) ?? 1
+        secondRateDecimals = try values.decodeIfPresent(Int.self, forKey: .secondRateDecimals) ?? 4
         useChinaHolidayCalendar = try values.decodeIfPresent(Bool.self, forKey: .useChinaHolidayCalendar) ?? true
         windowOpacity = try values.decodeIfPresent(Double.self, forKey: .windowOpacity) ?? 0.96
         showWeekEarned = try values.decodeIfPresent(Bool.self, forKey: .showWeekEarned) ?? true
@@ -74,7 +101,11 @@ struct SalarySettings: Codable {
         showProgress = try values.decodeIfPresent(Bool.self, forKey: .showProgress) ?? true
         showHourlyRate = try values.decodeIfPresent(Bool.self, forKey: .showHourlyRate) ?? true
         showDailyRate = try values.decodeIfPresent(Bool.self, forKey: .showDailyRate) ?? true
+        showSecondRate = try values.decodeIfPresent(Bool.self, forKey: .showSecondRate) ?? false
+        showAnnualSalary = try values.decodeIfPresent(Bool.self, forKey: .showAnnualSalary) ?? false
         showWorkDuration = try values.decodeIfPresent(Bool.self, forKey: .showWorkDuration) ?? true
+        durationDisplay = try values.decodeIfPresent(DurationDisplay.self, forKey: .durationDisplay) ?? .hoursMinutesSeconds
+        hourglassAnimationEnabled = try values.decodeIfPresent(Bool.self, forKey: .hourglassAnimationEnabled) ?? false
         compactMode = try values.decodeIfPresent(Bool.self, forKey: .compactMode) ?? false
         useAfterTaxSalary = try values.decodeIfPresent(Bool.self, forKey: .useAfterTaxSalary) ?? false
         socialInsuranceBase = try values.decodeIfPresent(Double.self, forKey: .socialInsuranceBase) ?? monthlySalary
@@ -89,7 +120,27 @@ struct SalarySettings: Codable {
         afterWorkReminderMinute = try values.decodeIfPresent(Int.self, forKey: .afterWorkReminderMinute) ?? endMinute
         wishList = try values.decodeIfPresent([SalaryWish].self, forKey: .wishList) ?? []
         familyMembers = try values.decodeIfPresent([FamilySalaryMember].self, forKey: .familyMembers) ?? []
+        // Migrate old shared schedules to each member so existing users retain
+        // the exact workday times they had before schedules became independent.
+        for index in familyMembers.indices {
+            if familyMembers[index].needsWorkdaysMigration {
+                familyMembers[index].workdays = workdays
+                familyMembers[index].needsWorkdaysMigration = false
+            }
+            if familyMembers[index].needsScheduleMigration {
+                familyMembers[index].startHour = startHour
+                familyMembers[index].startMinute = startMinute
+                familyMembers[index].endHour = endHour
+                familyMembers[index].endMinute = endMinute
+                familyMembers[index].lunchStartHour = lunchStartHour
+                familyMembers[index].lunchStartMinute = lunchStartMinute
+                familyMembers[index].lunchEndHour = lunchEndHour
+                familyMembers[index].lunchEndMinute = lunchEndMinute
+                familyMembers[index].needsScheduleMigration = false
+            }
+        }
         windowLocked = try values.decodeIfPresent(Bool.self, forKey: .windowLocked) ?? false
+        alwaysOnTop = try values.decodeIfPresent(Bool.self, forKey: .alwaysOnTop) ?? false
     }
 }
 
@@ -97,6 +148,71 @@ struct FamilySalaryMember: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var name: String
     var monthlySalary: Double
+    var yearEndBonus: Double = 0
+    var workdays: Set<Int> = [2, 3, 4, 5, 6]
+    var useAfterTaxSalary: Bool = false
+    var socialInsuranceBase: Double = 10000
+    var socialInsuranceRate: Double = 10.5
+    var housingFundBase: Double = 10000
+    var housingFundRate: Double = 7.0
+    var monthlySpecialDeductions: Double = 0
+    var startHour: Int = 9
+    var startMinute: Int = 0
+    var endHour: Int = 18
+    var endMinute: Int = 0
+    var lunchStartHour: Int = 12
+    var lunchStartMinute: Int = 0
+    var lunchEndHour: Int = 13
+    var lunchEndMinute: Int = 0
+    fileprivate var needsScheduleMigration: Bool = false
+    fileprivate var needsWorkdaysMigration: Bool = false
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, monthlySalary, yearEndBonus, workdays, useAfterTaxSalary, socialInsuranceBase
+        case socialInsuranceRate, housingFundBase, housingFundRate, monthlySpecialDeductions
+        case startHour, startMinute, endHour, endMinute, lunchStartHour, lunchStartMinute, lunchEndHour, lunchEndMinute
+    }
+
+    init(id: UUID = UUID(), name: String, monthlySalary: Double, yearEndBonus: Double = 0, useAfterTaxSalary: Bool = false,
+         socialInsuranceBase: Double? = nil, socialInsuranceRate: Double = 10.5,
+         housingFundBase: Double? = nil, housingFundRate: Double = 7.0,
+         monthlySpecialDeductions: Double = 0) {
+        self.id = id
+        self.name = name
+        self.monthlySalary = monthlySalary
+        self.yearEndBonus = yearEndBonus
+        self.useAfterTaxSalary = useAfterTaxSalary
+        self.socialInsuranceBase = socialInsuranceBase ?? monthlySalary
+        self.socialInsuranceRate = socialInsuranceRate
+        self.housingFundBase = housingFundBase ?? monthlySalary
+        self.housingFundRate = housingFundRate
+        self.monthlySpecialDeductions = monthlySpecialDeductions
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try values.decodeIfPresent(String.self, forKey: .name) ?? "家庭成员"
+        monthlySalary = try values.decodeIfPresent(Double.self, forKey: .monthlySalary) ?? 10000
+        yearEndBonus = try values.decodeIfPresent(Double.self, forKey: .yearEndBonus) ?? 0
+        workdays = try values.decodeIfPresent(Set<Int>.self, forKey: .workdays) ?? [2, 3, 4, 5, 6]
+        useAfterTaxSalary = try values.decodeIfPresent(Bool.self, forKey: .useAfterTaxSalary) ?? false
+        socialInsuranceBase = try values.decodeIfPresent(Double.self, forKey: .socialInsuranceBase) ?? monthlySalary
+        socialInsuranceRate = try values.decodeIfPresent(Double.self, forKey: .socialInsuranceRate) ?? 10.5
+        housingFundBase = try values.decodeIfPresent(Double.self, forKey: .housingFundBase) ?? monthlySalary
+        housingFundRate = try values.decodeIfPresent(Double.self, forKey: .housingFundRate) ?? 7.0
+        monthlySpecialDeductions = try values.decodeIfPresent(Double.self, forKey: .monthlySpecialDeductions) ?? 0
+        startHour = try values.decodeIfPresent(Int.self, forKey: .startHour) ?? 9
+        startMinute = try values.decodeIfPresent(Int.self, forKey: .startMinute) ?? 0
+        endHour = try values.decodeIfPresent(Int.self, forKey: .endHour) ?? 18
+        endMinute = try values.decodeIfPresent(Int.self, forKey: .endMinute) ?? 0
+        lunchStartHour = try values.decodeIfPresent(Int.self, forKey: .lunchStartHour) ?? 12
+        lunchStartMinute = try values.decodeIfPresent(Int.self, forKey: .lunchStartMinute) ?? 0
+        lunchEndHour = try values.decodeIfPresent(Int.self, forKey: .lunchEndHour) ?? 13
+        lunchEndMinute = try values.decodeIfPresent(Int.self, forKey: .lunchEndMinute) ?? 0
+        needsScheduleMigration = !values.contains(.startHour) && !values.contains(.endHour)
+        needsWorkdaysMigration = !values.contains(.workdays)
+    }
 }
 
 struct SalaryWish: Codable, Identifiable, Equatable {
@@ -109,6 +225,13 @@ struct SalaryWish: Codable, Identifiable, Equatable {
 enum DisplayMode: String, Codable, CaseIterable {
     case money = "金额"
     case percent = "进度"
+}
+
+
+enum DurationDisplay: String, Codable, CaseIterable, Identifiable {
+    case hoursMinutesSeconds = "时分秒"
+    case hoursMinutes = "时分"
+    var id: String { rawValue }
 }
 
 enum NumberAnimationStyle: String, Codable, CaseIterable {
@@ -142,6 +265,8 @@ struct SalarySnapshot {
     let monthEarned: Double
     let tax: Double
     let netMonthlySalary: Double
+    let secondRate: Double
+    let annualSalary: Double
 }
 
 enum ChinaWorkCalendar {
@@ -258,7 +383,9 @@ enum SalaryCalculator {
             weekEarned: weekEarned,
             monthEarned: monthEarned,
             tax: monthlyTax,
-            netMonthlySalary: netMonthlySalary
+            netMonthlySalary: netMonthlySalary,
+            secondRate: hourlyRate / 3600,
+            annualSalary: calculationSalary * 12 + max(0, settings.yearEndBonus)
         )
     }
 
@@ -326,6 +453,6 @@ enum SalaryCalculator {
     private static func emptySnapshot() -> SalarySnapshot {
         SalarySnapshot(earned: 0, progress: 0, todayWorkSeconds: 0, elapsedWorkSeconds: 0,
                        monthlyWorkdays: 0, isWorkday: false, isWorkingNow: false,
-                       remainingSeconds: 0, isPublicHoliday: false, isMakeupWorkday: false, dailyRate: 0, hourlyRate: 0, weekEarned: 0, monthEarned: 0, tax: 0, netMonthlySalary: 0)
+                       remainingSeconds: 0, isPublicHoliday: false, isMakeupWorkday: false, dailyRate: 0, hourlyRate: 0, weekEarned: 0, monthEarned: 0, tax: 0, netMonthlySalary: 0, secondRate: 0, annualSalary: 0)
     }
 }

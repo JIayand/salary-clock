@@ -4,3 +4,6 @@
 .DS_Store
 dist/
 .backups/
+.legacy-app-backups/
+**/xcuserdata/
+screenshots/private/

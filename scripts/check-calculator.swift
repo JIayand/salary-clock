@@ -68,6 +68,31 @@ struct CalculatorChecks {
                      "旧版本配置向前兼容失败")
         precondition(migrated.familyMembers.isEmpty && !migrated.windowLocked,
                      "旧配置的家庭成员和窗口锁定默认值迁移失败")
+        precondition(migrated.language == .simplifiedChinese, "旧配置应默认使用简体中文")
+        let legacyFamilyJSON = #"{"monthlySalary":15000,"startHour":8,"startMinute":30,"endHour":17,"endMinute":30,"lunchStartHour":12,"lunchEndHour":13,"familyMembers":[{"name":"旧家庭成员","monthlySalary":9000}]}"#.data(using: .utf8)!
+        let migratedFamily = try! JSONDecoder().decode(SalarySettings.self, from: legacyFamilyJSON)
+        let migratedMember = migratedFamily.familyMembers[0]
+        precondition(migratedMember.workdays == migratedFamily.workdays,
+                     "旧家庭成员应继承升级前的共享每周工作制度")
+        precondition(migratedMember.startHour == 8 && migratedMember.startMinute == 30
+                     && migratedMember.endHour == 17 && migratedMember.endMinute == 30
+                     && migratedMember.lunchStartHour == 12 && migratedMember.lunchEndHour == 13,
+                     "旧版本家庭成员应继承升级前的共享工作时间")
+        let legacyPersonalScheduleJSON = #"{"monthlySalary":15000,"workdays":[2,3,4,5,6],"startHour":8,"endHour":17,"familyMembers":[{"name":"已有独立时间的成员","monthlySalary":9000,"startHour":10,"startMinute":30,"endHour":19,"endMinute":30,"lunchStartHour":13,"lunchEndHour":14}]}"#.data(using: .utf8)!
+        let migratedPersonalSchedule = try! JSONDecoder().decode(SalarySettings.self, from: legacyPersonalScheduleJSON)
+        let preservedMember = migratedPersonalSchedule.familyMembers[0]
+        precondition(preservedMember.workdays == migratedPersonalSchedule.workdays
+                     && preservedMember.startHour == 10 && preservedMember.startMinute == 30
+                     && preservedMember.endHour == 19 && preservedMember.endMinute == 30
+                     && preservedMember.lunchStartHour == 13 && preservedMember.lunchEndHour == 14,
+                     "新增每周工作制度字段时，不得覆盖成员已有的独立上下班时间")
+        for language in AppLanguage.allCases {
+            var languageSettings = migrated
+            languageSettings.language = language
+            let encoded = try! JSONEncoder().encode(languageSettings)
+            let decoded = try! JSONDecoder().decode(SalarySettings.self, from: encoded)
+            precondition(decoded.language == language, "语言设置持久化失败：\\(language.rawValue)")
+        }
         var compactSettings = migrated
         compactSettings.compactMode = true
         let compactData = try! JSONEncoder().encode(compactSettings)
@@ -115,7 +140,7 @@ struct CalculatorChecks {
 
         var familySettings = migrated
         familySettings.familyMembers = [
-            FamilySalaryMember(name: "伴侣", monthlySalary: 18000),
+            FamilySalaryMember(name: "伴侣", monthlySalary: 18000, yearEndBonus: 30000),
             FamilySalaryMember(name: "父亲", monthlySalary: 9000)
         ]
         familySettings.windowLocked = true
@@ -124,11 +149,96 @@ struct CalculatorChecks {
         precondition(familyReloaded.familyMembers.count == 2
                      && familyReloaded.familyMembers[0].name == "伴侣"
                      && familyReloaded.familyMembers[0].monthlySalary == 18000
+                     && familyReloaded.familyMembers[0].yearEndBonus == 30000
                      && familyReloaded.familyMembers[1].name == "父亲"
                      && familyReloaded.familyMembers[1].monthlySalary == 9000,
                      "家庭成员姓名和月薪配置持久化失败")
         precondition(familyReloaded.windowLocked, "窗口锁定状态持久化失败")
+        let legacyMemberJSON = #"{"name":"旧成员","monthlySalary":12000}"#.data(using: .utf8)!
+        let legacyMember = try! JSONDecoder().decode(FamilySalaryMember.self, from: legacyMemberJSON)
+        precondition(legacyMember.monthlySalary == 12000 && legacyMember.socialInsuranceBase == 12000
+                     && legacyMember.housingFundBase == 12000 && !legacyMember.useAfterTaxSalary,
+                     "旧家庭成员配置迁移到独立税后档案失败")
+        var partner = FamilySalaryMember(name: "伴侣", monthlySalary: 18000, yearEndBonus: 12000)
+        partner.useAfterTaxSalary = true
+        partner.socialInsuranceBase = 15000
+        partner.socialInsuranceRate = 10.5
+        partner.housingFundBase = 18000
+        partner.housingFundRate = 5
+        partner.monthlySpecialDeductions = 2000
+        familySettings.familyMembers = [partner]
+        let independentTaxData = try! JSONEncoder().encode(familySettings)
+        let independentTaxReloaded = try! JSONDecoder().decode(SalarySettings.self, from: independentTaxData)
+        let savedPartner = independentTaxReloaded.familyMembers[0]
+        precondition(savedPartner.useAfterTaxSalary && savedPartner.socialInsuranceBase == 15000
+                     && savedPartner.socialInsuranceRate == 10.5 && savedPartner.housingFundBase == 18000
+                     && savedPartner.housingFundRate == 5 && savedPartner.monthlySpecialDeductions == 2000,
+                     "家庭成员独立税后参数持久化失败")
+        partner.workdays = [2, 3, 4, 5, 6, 7]
+        partner.startHour = 10
+        partner.startMinute = 30
+        partner.endHour = 19
+        partner.endMinute = 30
+        partner.lunchStartHour = 13
+        partner.lunchEndHour = 14
+        var secondMember = FamilySalaryMember(name: "双休成员", monthlySalary: 12000)
+        secondMember.workdays = [2, 3, 4, 5, 6]
+        familySettings.familyMembers = [partner, secondMember]
+        let independentScheduleData = try! JSONEncoder().encode(familySettings)
+        let independentScheduleReloaded = try! JSONDecoder().decode(SalarySettings.self, from: independentScheduleData)
+        let scheduledPartner = independentScheduleReloaded.familyMembers[0]
+        let scheduledSecondMember = independentScheduleReloaded.familyMembers[1]
+        precondition(scheduledPartner.workdays == [2, 3, 4, 5, 6, 7]
+                     && scheduledSecondMember.workdays == [2, 3, 4, 5, 6],
+                     "不同家庭成员的每周工作制度必须独立持久化，不能互相覆盖")
+        precondition(scheduledPartner.startHour == 10 && scheduledPartner.startMinute == 30
+                     && scheduledPartner.endHour == 19 && scheduledPartner.endMinute == 30
+                     && scheduledPartner.lunchStartHour == 13 && scheduledPartner.lunchEndHour == 14,
+                     "家庭成员独立工作时间持久化失败")
+        var partnerSchedule = SalarySettings()
+        partnerSchedule.monthlySalary = scheduledPartner.monthlySalary
+        partnerSchedule.workdays = scheduledPartner.workdays
+        partnerSchedule.startHour = scheduledPartner.startHour
+        partnerSchedule.startMinute = scheduledPartner.startMinute
+        partnerSchedule.endHour = scheduledPartner.endHour
+        partnerSchedule.endMinute = scheduledPartner.endMinute
+        partnerSchedule.lunchStartHour = scheduledPartner.lunchStartHour
+        partnerSchedule.lunchEndHour = scheduledPartner.lunchEndHour
+        let beforePartnerShift = SalaryCalculator.snapshot(settings: partnerSchedule, now: date(2026, 11, 24, 10), calendar: calendar)
+        let duringPartnerShift = SalaryCalculator.snapshot(settings: partnerSchedule, now: date(2026, 11, 24, 11), calendar: calendar)
+        precondition(beforePartnerShift.progress == 0 && duringPartnerShift.progress > 0,
+                     "家庭成员应按自己的上班时间计算收入进度")
+        let partnerSaturday = SalaryCalculator.snapshot(settings: partnerSchedule, now: date(2026, 11, 28, 11), calendar: calendar)
+        precondition(partnerSaturday.isWorkday, "家庭成员应按自己的每周工作制度将周六识别为工作日")
+        var displaySettings = SalarySettings()
+        displaySettings.showSecondRate = true
+        displaySettings.showAnnualSalary = true
+        let displayRoundTrip = try! JSONDecoder().decode(SalarySettings.self, from: JSONEncoder().encode(displaySettings))
+        precondition(displayRoundTrip.showSecondRate && displayRoundTrip.showAnnualSalary,
+                     "秒薪和年薪显示开关持久化失败")
+        precondition(abs(morning.secondRate - morning.hourlyRate / 3600) < 0.000001
+                     && abs(morning.annualSalary - settings.monthlySalary * 12) < 0.01,
+                     "秒薪或年薪计算错误")
+        var bonusSettings = settings
+        bonusSettings.yearEndBonus = 25000
+        let bonusSnapshot = SalaryCalculator.snapshot(settings: bonusSettings, now: date(2026, 11, 24, 10), calendar: calendar)
+        precondition(abs(bonusSnapshot.annualSalary - (settings.monthlySalary * 12 + 25000)) < 0.01
+                     && abs(bonusSnapshot.dailyRate - morning.dailyRate) < 0.000001,
+                     "年终奖应计入年薪，但不能改变日薪")
+        var partnerCalculation = SalarySettings()
+        partnerCalculation.monthlySalary = savedPartner.monthlySalary
+        partnerCalculation.yearEndBonus = savedPartner.yearEndBonus
+        partnerCalculation.socialInsuranceBase = savedPartner.socialInsuranceBase
+        partnerCalculation.socialInsuranceRate = savedPartner.socialInsuranceRate
+        partnerCalculation.housingFundBase = savedPartner.housingFundBase
+        partnerCalculation.housingFundRate = savedPartner.housingFundRate
+        partnerCalculation.monthlySpecialDeductions = savedPartner.monthlySpecialDeductions
+        partnerCalculation.useAfterTaxSalary = savedPartner.useAfterTaxSalary
+        let partnerSnapshot = SalaryCalculator.snapshot(settings: partnerCalculation, now: date(2026, 11, 24, 10), calendar: calendar)
+        precondition(partnerSnapshot.netMonthlySalary < savedPartner.monthlySalary && partnerSnapshot.tax >= 0
+                     && abs(partnerSnapshot.annualSalary - (partnerSnapshot.netMonthlySalary * 12 + savedPartner.yearEndBonus)) < 0.01,
+                     "家庭成员独立税后工资或年终奖计算失败")
 
-        print("通过：35 项检查（薪资计算、工作时间、节假日与补班、配置兼容、家庭成员薪资、窗口锁定、税后工资、愿望清单、下班提醒、隐私模式及动画设置）")
+        print("通过：新增独立工作时间、秒薪/年薪开关与计算回归检查；并覆盖薪资计算、节假日与补班、配置兼容、家庭成员税后档案、窗口锁定、愿望清单、提醒、隐私模式、动画及多语言配置")
     }
 }

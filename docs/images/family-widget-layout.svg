@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">薪资时钟超大家庭收入组件布局示意</title>
+  <desc id="desc">匿名示意图，展示个人收入概览与家庭成员收入卡片的横向桌面组件布局。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#171b27"/><stop offset="1" stop-color="#202638"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#39cfa5"/><stop offset="1" stop-color="#61e6b5"/></linearGradient>
+  </defs>
+  <rect x="8" y="8" width="1184" height="744" rx="34" fill="url(#bg)" stroke="#343b4c" stroke-width="3"/>
+  <rect x="34" y="34" width="390" height="692" rx="24" fill="#ffffff" opacity=".035"/>
+  <text x="62" y="82" fill="#aab2c2" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="25" font-weight="600">今日已赚</text>
+  <text x="62" y="158" fill="#58dfb0" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="58" font-weight="750">¥  XXX.XX</text>
+  <text x="62" y="204" fill="#d3d8e2" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="20" font-weight="600">今日进度  68.5%</text>
+  <rect x="62" y="226" width="330" height="10" rx="5" fill="#ffffff" opacity=".13"/><rect x="62" y="226" width="226" height="10" rx="5" fill="url(#accent)"/>
+  <text x="62" y="280" fill="#aab2c2" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="18">已工作 05:28:00</text>
+  <text x="62" y="314" fill="#aab2c2" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="18">上班 09:00　下班 18:00</text>
+  <g font-family="-apple-system,BlinkMacSystemFont,sans-serif">
+    <rect x="56" y="360" width="164" height="116" rx="16" fill="#ffffff" opacity=".07"/><text x="76" y="397" fill="#9da7b8" font-size="16">本周已赚</text><text x="76" y="438" fill="#f1f3f8" font-size="23" font-weight="650">¥ XXX.XX</text>
+    <rect x="234" y="360" width="164" height="116" rx="16" fill="#ffffff" opacity=".07"/><text x="254" y="397" fill="#9da7b8" font-size="16">本月已赚</text><text x="254" y="438" fill="#f1f3f8" font-size="23" font-weight="650">¥ XXX.XX</text>
+    <rect x="56" y="492" width="164" height="116" rx="16" fill="#ffffff" opacity=".07"/><text x="76" y="529" fill="#9da7b8" font-size="16">时薪</text><text x="76" y="570" fill="#f1f3f8" font-size="23" font-weight="650">¥ XX.XX</text>
+    <rect x="234" y="492" width="164" height="116" rx="16" fill="#ffffff" opacity=".07"/><text x="254" y="529" fill="#9da7b8" font-size="16">日薪</text><text x="254" y="570" fill="#f1f3f8" font-size="23" font-weight="650">¥ XXX.XX</text>
+  </g>
+  <path d="M445 48V710" stroke="#ffffff" opacity=".12" stroke-width="2"/>
+  <text x="484" y="82" fill="#f2f4f8" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="28" font-weight="700">家庭收入总览</text>
+  <text x="484" y="116" fill="#929caf" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="16">本人及家庭成员 · 今日收入与工作进度</text>
+  <text x="1128" y="74" text-anchor="end" fill="#929caf" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="16">家庭今日合计</text>
+  <text x="1128" y="110" text-anchor="end" fill="#58dfb0" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="30" font-weight="750">¥ XXX.XX</text>
+  <g font-family="-apple-system,BlinkMacSystemFont,sans-serif">
+    <rect x="484" y="154" width="322" height="238" rx="20" fill="#ffffff" opacity=".075"/><circle cx="510" cy="184" r="7" fill="#58dfb0"/><text x="530" y="191" fill="#f3f5f9" font-size="20" font-weight="650">本人</text><text x="780" y="190" text-anchor="end" fill="#58dfb0" font-size="17" font-weight="650">68.5%</text><text x="510" y="246" fill="#58dfb0" font-size="34" font-weight="750">¥ XXX.XX</text><rect x="510" y="266" width="270" height="8" rx="4" fill="#ffffff" opacity=".13"/><rect x="510" y="266" width="185" height="8" rx="4" fill="url(#accent)"/><text x="510" y="306" fill="#aab2c2" font-size="14">已工作 05:28　·　剩余 02:32</text><text x="510" y="333" fill="#929caf" font-size="14">上班 09:00　下班 18:00</text><text x="510" y="370" fill="#dce1ea" font-size="15">本周 / 本月 / 时薪 / 日薪</text>
+    <rect x="826" y="154" width="322" height="238" rx="20" fill="#ffffff" opacity=".075"/><circle cx="852" cy="184" r="7" fill="#58dfb0"/><text x="872" y="191" fill="#f3f5f9" font-size="20" font-weight="650">家庭成员 A</text><text x="1122" y="190" text-anchor="end" fill="#58dfb0" font-size="17" font-weight="650">54.2%</text><text x="852" y="246" fill="#58dfb0" font-size="34" font-weight="750">¥ XXX.XX</text><rect x="852" y="266" width="270" height="8" rx="4" fill="#ffffff" opacity=".13"/><rect x="852" y="266" width="146" height="8" rx="4" fill="url(#accent)"/><text x="852" y="306" fill="#aab2c2" font-size="14">已工作 04:20　·　剩余 03:40</text><text x="852" y="333" fill="#929caf" font-size="14">上班 08:30　下班 18:30</text><text x="852" y="370" fill="#dce1ea" font-size="15">本周 / 本月 / 时薪 / 日薪</text>
+    <rect x="484" y="410" width="322" height="238" rx="20" fill="#ffffff" opacity=".075"/><circle cx="510" cy="440" r="7" fill="#58dfb0"/><text x="530" y="447" fill="#f3f5f9" font-size="20" font-weight="650">家庭成员 B</text><text x="780" y="446" text-anchor="end" fill="#58dfb0" font-size="17" font-weight="650">82.0%</text><text x="510" y="502" fill="#58dfb0" font-size="34" font-weight="750">¥ XXX.XX</text><rect x="510" y="522" width="270" height="8" rx="4" fill="#ffffff" opacity=".13"/><rect x="510" y="522" width="221" height="8" rx="4" fill="url(#accent)"/><text x="510" y="562" fill="#aab2c2" font-size="14">已工作 06:34　·　剩余 01:26</text><text x="510" y="589" fill="#929caf" font-size="14">上班 09:00　下班 17:00</text><text x="510" y="626" fill="#dce1ea" font-size="15">本周 / 本月 / 时薪 / 日薪</text>
+    <rect x="826" y="410" width="322" height="238" rx="20" fill="#ffffff" opacity=".075"/><circle cx="852" cy="440" r="7" fill="#58dfb0"/><text x="872" y="447" fill="#f3f5f9" font-size="20" font-weight="650">家庭成员 C</text><text x="1122" y="446" text-anchor="end" fill="#58dfb0" font-size="17" font-weight="650">36.8%</text><text x="852" y="502" fill="#58dfb0" font-size="34" font-weight="750">¥ XXX.XX</text><rect x="852" y="522" width="270" height="8" rx="4" fill="#ffffff" opacity=".13"/><rect x="852" y="522" width="99" height="8" rx="4" fill="url(#accent)"/><text x="852" y="562" fill="#aab2c2" font-size="14">已工作 02:56　·　剩余 05:04</text><text x="852" y="589" fill="#929caf" font-size="14">上班 10:00　下班 19:00</text><text x="852" y="626" fill="#dce1ea" font-size="15">本周 / 本月 / 时薪 / 日薪</text>
+  </g>
+  <text x="600" y="704" text-anchor="middle" fill="#788397" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14">布局示意图 · 示例数据 · 非实际运行截图</text>
+</svg>
