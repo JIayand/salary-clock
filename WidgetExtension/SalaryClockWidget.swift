@@ -149,6 +149,10 @@ struct SalaryClockWidgetView: View {
         return String(format: "¥ %.*f", entry.settings.decimals, entry.snapshot.earned)
     }
 
+    private func money(_ value: Double) -> String {
+        String(format: "¥ %.2f", value)
+    }
+
     private var statusText: String {
         if entry.snapshot.isPublicHoliday { return "法定节假日" }
         if entry.snapshot.isMakeupWorkday { return "调休补班日" }

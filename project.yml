@@ -1,0 +1,44 @@
+name: SalaryClock
+options:
+  bundleIdPrefix: com.jyd
+  deploymentTarget:
+    macOS: "13.0"
+
+targets:
+  SalaryClock:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/SalaryClock
+    dependencies:
+      - target: SalaryClockWidgetExtension
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jyd.salaryclock
+        PRODUCT_NAME: SalaryClock
+        MACOSX_DEPLOYMENT_TARGET: "13.0"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_ENTITLEMENTS: Configuration/SalaryClock.entitlements
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: 薪资时钟
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        ENABLE_APP_SANDBOX: NO
+
+  SalaryClockWidgetExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: WidgetExtension
+      - path: Sources/SalaryClock/SalaryCalculator.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jyd.salaryclock.widget
+        PRODUCT_NAME: SalaryClockWidgetExtension
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_ENTITLEMENTS: Configuration/SalaryClockWidget.entitlements
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES

@@ -17,5 +17,7 @@ jobs:
         run: |
           swiftc Sources/SalaryClock/SalaryCalculator.swift scripts/check-calculator.swift -o /tmp/salary-clock-calculator-check
           /tmp/salary-clock-calculator-check
-      - name: Parse WidgetKit source
-        run: swiftc -frontend -parse WidgetExtension/SalaryClockWidget.swift
+      - name: Type-check WidgetKit extension
+        run: |
+          swiftc -typecheck -target arm64-apple-macosx14.0 Sources/SalaryClock/SalaryCalculator.swift WidgetExtension/SalaryClockWidget.swift
+          swiftc -target arm64-apple-macosx14.0 -module-name SalaryClockWidgetExtension -o /tmp/SalaryClockWidgetExtension Sources/SalaryClock/SalaryCalculator.swift WidgetExtension/SalaryClockWidget.swift -framework SwiftUI -framework WidgetKit

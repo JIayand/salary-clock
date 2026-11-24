@@ -55,7 +55,10 @@
 - `WidgetExtension/SalaryClockWidget.swift`：WidgetKit 扩展源码
 - `Configuration/*.entitlements`：App Group 权限配置
 - `scripts/check-calculator.swift`：计算逻辑回归检查脚本
-- `scripts/build-mac.sh`：悬浮应用构建脚本
+- `scripts/build-mac.sh`：Swift Package 悬浮应用构建脚本
+- `project.yml`：XcodeGen App + Widget Extension 工程定义
+- `SalaryClock.xcodeproj`：已生成的 Xcode 工程
+- `scripts/build-xcode.sh`：生成/更新 Xcode 工程并构建完整应用包
 
 ## 构建悬浮应用
 
@@ -76,16 +79,20 @@ swiftc Sources/SalaryClock/SalaryCalculator.swift scripts/check-calculator.swift
 
 ## WidgetKit 构建状态
 
-WidgetKit 源码、App Group 标识和 entitlements 已准备，但**尚未完成 Xcode 工程构建、签名和安装验证**。当前开发机只有 Xcode Command Line Tools，没有完整的 Xcode.app；`xcodebuild` 因此无法构建 Widget Extension。
+WidgetKit 源码已通过当前 macOS SDK 的 Swift 类型检查，并使用 Swift 编译器成功编译为 arm64 Mach-O 扩展可执行文件。**尚未完成 Xcode 工程构建、App Extension 包装、代码签名、嵌入主应用和系统安装验证**。当前开发机只有 Xcode Command Line Tools，没有完整的 Xcode.app；因此无法执行最后的 Xcode 工程构建和安装验证。
 
-完成 WidgetKit 安装需要：
-1. 安装完整 Xcode，并运行一次完成组件安装。
-2. 为 macOS App 创建 Widget Extension Target（建议 macOS 14.0+）。
-3. App 与 Widget Extension 均设置 App Group：`group.com.jyd.salaryclock`。
-4. App 主 Target 编译 `Sources/SalaryClock` 中的共享计算代码。
-5. Widget Extension Target 编译 `SalaryCalculator.swift` 和 `WidgetExtension/SalaryClockWidget.swift`。
-6. 分别配置 `Configuration/SalaryClock.entitlements` 和 `Configuration/SalaryClockWidget.entitlements`。
-7. 在签名团队中注册 App Group，完成两个 Target 的签名，再通过 Xcode 构建、安装并在通知中心/桌面添加 Widget。
+已提供 `project.yml`（XcodeGen 工程定义）和 `scripts/build-xcode.sh`。安装完整 Xcode 与 XcodeGen 后，执行：
+
+```bash
+brew install xcodegen
+./scripts/build-xcode.sh
+```
+
+完成 WidgetKit 安装还需要：
+1. 在 Xcode 中配置有效的开发团队，并在 Apple Developer 账户注册 App Group：`group.com.jyd.salaryclock`。
+2. 确认 App 与 Widget Extension 两个 Target 都使用该 App Group 和各自的 entitlements。
+3. App 主 Target 编译 `Sources/SalaryClock`；Widget Extension Target 编译共享的 `SalaryCalculator.swift` 和 `WidgetExtension/SalaryClockWidget.swift`。
+4. 完成两个 Target 的签名，再通过 Xcode 构建、安装，并在通知中心/桌面添加 Widget。
 
 WidgetKit 的刷新频率由系统管理，无法保证像悬浮窗口一样每 100ms 更新。
 
