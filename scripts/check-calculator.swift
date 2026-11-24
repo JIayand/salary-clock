@@ -78,10 +78,16 @@ struct CalculatorChecks {
         precondition(migrated.percentDecimals == 1, "旧配置百分比小数位默认值迁移失败")
         var taxSettings = SalarySettings()
         taxSettings.monthlySalary = 10000
-        let expectedTax = (60000.0 * 0.10 - 2520) / 12
+        taxSettings.socialInsuranceBase = 10000
+        taxSettings.socialInsuranceRate = 10.5
+        taxSettings.housingFundBase = 10000
+        taxSettings.housingFundRate = 7
+        let expectedContributions = 1750.0
+        precondition(abs(SalaryCalculator.estimatedMonthlyContributions(settings: taxSettings) - expectedContributions) < 0.01,
+                         "社保和公积金比例计算错误")
+        let expectedTax = (39000.0 * 0.10 - 2520) / 12
         precondition(abs(SalaryCalculator.estimatedMonthlyTax(settings: taxSettings) - expectedTax) < 0.01,
                          "月度个税估算错误")
-        taxSettings.monthlySocialInsurance = 1000
         taxSettings.monthlySpecialDeductions = 2000
         let reducedTax = SalaryCalculator.estimatedMonthlyTax(settings: taxSettings)
         precondition(reducedTax < expectedTax, "社保和专项附加扣除应降低预计个税")
@@ -90,7 +96,21 @@ struct CalculatorChecks {
         precondition(afterTaxSnapshot.netMonthlySalary < taxSettings.monthlySalary, "税后工资应低于税前工资")
         precondition(abs(afterTaxSnapshot.dailyRate - afterTaxSnapshot.netMonthlySalary / Double(afterTaxSnapshot.monthlyWorkdays)) < 0.01,
                          "启用税后工资后日薪应按税后月薪计算")
+        var featureSettings = migrated
+        featureSettings.privacyMode = true
+        featureSettings.afterWorkReminderEnabled = true
+        featureSettings.afterWorkReminderHour = 18
+        featureSettings.afterWorkReminderMinute = 30
+        featureSettings.wishList = [SalaryWish(name: "旅行", targetAmount: 20000, savedAmount: 5000)]
+        let featureData = try! JSONEncoder().encode(featureSettings)
+        let featureReloaded = try! JSONDecoder().decode(SalarySettings.self, from: featureData)
+        precondition(featureReloaded.privacyMode && featureReloaded.afterWorkReminderEnabled
+                     && featureReloaded.afterWorkReminderHour == 18 && featureReloaded.afterWorkReminderMinute == 30,
+                     "隐私模式或下班提醒配置持久化失败")
+        precondition(featureReloaded.wishList.count == 1 && featureReloaded.wishList[0].name == "旅行"
+                     && featureReloaded.wishList[0].targetAmount == 20000 && featureReloaded.wishList[0].savedAmount == 5000,
+                     "愿望清单配置持久化失败")
 
-        print("通过：29 项检查（薪资计算、工作时间、节假日与补班、配置兼容、紧凑模式、税后工资及动画设置）")
+        print("通过：32 项检查（薪资计算、工作时间、节假日与补班、配置兼容、税后工资、愿望清单、下班提醒、隐私模式及动画设置）")
     }
 }

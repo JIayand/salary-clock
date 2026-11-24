@@ -77,10 +77,13 @@ struct FloatingWidgetView: View {
                 }
                 Spacer(minLength: 2)
                 VStack(alignment: .trailing, spacing: 5) {
-                    Button { SettingsWindowController.shared.show(model: model) } label: {
-                        Image(systemName: "slider.horizontal.3").font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(foreground.opacity(0.72)).frame(width: 22, height: 22)
-                    }.buttonStyle(.plain).help("显示与计算设置")
+                    HStack(spacing: 5) {
+                        privacyButton
+                        Button { SettingsWindowController.shared.show(model: model) } label: {
+                            Image(systemName: "slider.horizontal.3").font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(foreground.opacity(0.72)).frame(width: 22, height: 22)
+                        }.buttonStyle(.plain).help("显示与计算设置")
+                    }
                     Text(String(format: "%.*f%%", model.settings.percentDecimals, snapshot.progress * 100))
                         .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
                         .foregroundStyle(foreground.opacity(0.72))
@@ -111,6 +114,7 @@ struct FloatingWidgetView: View {
                 Text(Date.now.formatted(.dateTime.month(.abbreviated).day()))
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(foreground.opacity(0.4))
+                privacyButton
                 Button {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
                         model.settings.compactMode.toggle()
@@ -210,11 +214,22 @@ struct FloatingWidgetView: View {
         return "今天不是工作日"
     }
     private func primaryValue(_ s: SalarySnapshot) -> String {
-        model.settings.mode == .percent
-            ? String(format: "%.*f%%", model.settings.percentDecimals, s.progress * 100)
-            : String(format: "¥ %.*f", model.settings.decimals, s.earned)
+        if model.settings.mode == .percent {
+            return String(format: "%.*f%%", model.settings.percentDecimals, s.progress * 100)
+        }
+        return model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, s.earned)
     }
-    private func money(_ value: Double) -> String { String(format: "¥ %.2f", value) }
+    private var privacyButton: some View {
+        Button { model.settings.privacyMode.toggle() } label: {
+            Image(systemName: model.settings.privacyMode ? "eye.slash" : "eye")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(foreground.opacity(0.72)).frame(width: 22, height: 22)
+        }.buttonStyle(.plain).help(model.settings.privacyMode ? "显示金额" : "隐藏金额（隐私模式）")
+    }
+
+    private func money(_ value: Double) -> String {
+        model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.2f", value)
+    }
     private func duration(_ seconds: TimeInterval) -> String {
         let value = Int(max(0, seconds))
         return String(format: "%02d:%02d", value / 3600, (value % 3600) / 60)

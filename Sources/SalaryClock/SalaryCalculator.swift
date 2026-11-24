@@ -25,16 +25,25 @@ struct SalarySettings: Codable {
     var showWorkDuration: Bool = true
     var compactMode: Bool = false
     var useAfterTaxSalary: Bool = false
-    var monthlySocialInsurance: Double = 0
+    var socialInsuranceBase: Double = 10000
+    var socialInsuranceRate: Double = 10.5
+    var housingFundBase: Double = 10000
+    var housingFundRate: Double = 7.0
     var monthlySpecialDeductions: Double = 0
     var numberAnimation: NumberAnimationStyle = .rolling
+    var privacyMode: Bool = false
+    var afterWorkReminderEnabled: Bool = false
+    var afterWorkReminderHour: Int = 18
+    var afterWorkReminderMinute: Int = 0
+    var wishList: [SalaryWish] = []
 
     private enum CodingKeys: String, CodingKey {
         case monthlySalary, workdays, startHour, startMinute, endHour, endMinute
         case lunchStartHour, lunchStartMinute, lunchEndHour, lunchEndMinute
         case mode, theme, decimals, percentDecimals, useChinaHolidayCalendar, windowOpacity
         case showWeekEarned, showMonthEarned, showProgress, showHourlyRate, showDailyRate, showWorkDuration, compactMode
-        case useAfterTaxSalary, monthlySocialInsurance, monthlySpecialDeductions, numberAnimation
+        case useAfterTaxSalary, socialInsuranceBase, socialInsuranceRate, housingFundBase, housingFundRate, monthlySpecialDeductions, numberAnimation
+        case privacyMode, afterWorkReminderEnabled, afterWorkReminderHour, afterWorkReminderMinute, wishList
     }
 
     init() {}
@@ -65,10 +74,25 @@ struct SalarySettings: Codable {
         showWorkDuration = try values.decodeIfPresent(Bool.self, forKey: .showWorkDuration) ?? true
         compactMode = try values.decodeIfPresent(Bool.self, forKey: .compactMode) ?? false
         useAfterTaxSalary = try values.decodeIfPresent(Bool.self, forKey: .useAfterTaxSalary) ?? false
-        monthlySocialInsurance = try values.decodeIfPresent(Double.self, forKey: .monthlySocialInsurance) ?? 0
+        socialInsuranceBase = try values.decodeIfPresent(Double.self, forKey: .socialInsuranceBase) ?? monthlySalary
+        socialInsuranceRate = try values.decodeIfPresent(Double.self, forKey: .socialInsuranceRate) ?? 10.5
+        housingFundBase = try values.decodeIfPresent(Double.self, forKey: .housingFundBase) ?? monthlySalary
+        housingFundRate = try values.decodeIfPresent(Double.self, forKey: .housingFundRate) ?? 7.0
         monthlySpecialDeductions = try values.decodeIfPresent(Double.self, forKey: .monthlySpecialDeductions) ?? 0
         numberAnimation = try values.decodeIfPresent(NumberAnimationStyle.self, forKey: .numberAnimation) ?? .rolling
+        privacyMode = try values.decodeIfPresent(Bool.self, forKey: .privacyMode) ?? false
+        afterWorkReminderEnabled = try values.decodeIfPresent(Bool.self, forKey: .afterWorkReminderEnabled) ?? false
+        afterWorkReminderHour = try values.decodeIfPresent(Int.self, forKey: .afterWorkReminderHour) ?? endHour
+        afterWorkReminderMinute = try values.decodeIfPresent(Int.self, forKey: .afterWorkReminderMinute) ?? endMinute
+        wishList = try values.decodeIfPresent([SalaryWish].self, forKey: .wishList) ?? []
     }
+}
+
+struct SalaryWish: Codable, Identifiable, Equatable {
+    var id: UUID = UUID()
+    var name: String
+    var targetAmount: Double
+    var savedAmount: Double = 0
 }
 
 enum DisplayMode: String, Codable, CaseIterable {
@@ -190,7 +214,8 @@ enum SalaryCalculator {
         let elapsed = dayStatus.isWorkday ? min(total, max(0, elapsedRaw - elapsedLunch)) : 0
         let progress = total > 0 && dayStatus.isWorkday ? min(1, max(0, elapsed / total)) : 0
         let monthlyTax = estimatedMonthlyTax(settings: settings)
-        let netMonthlySalary = max(0, settings.monthlySalary - max(0, settings.monthlySocialInsurance) - monthlyTax)
+        let monthlyContributions = estimatedMonthlyContributions(settings: settings)
+        let netMonthlySalary = max(0, settings.monthlySalary - monthlyContributions - monthlyTax)
         let calculationSalary = settings.useAfterTaxSalary ? netMonthlySalary : settings.monthlySalary
         let dailyRate = monthlyWorkdays > 0 ? calculationSalary / Double(monthlyWorkdays) : 0
         let earned = dailyRate * progress
@@ -261,9 +286,15 @@ enum SalaryCalculator {
 
     /// Steady-state monthly IIT estimate using the annual cumulative withholding brackets.
     /// Assumes 12 equal salary months; social insurance and additional deductions are user supplied.
+    static func estimatedMonthlyContributions(settings: SalarySettings) -> Double {
+        let social = max(0, settings.socialInsuranceBase) * max(0, settings.socialInsuranceRate) / 100
+        let housing = max(0, settings.housingFundBase) * max(0, settings.housingFundRate) / 100
+        return social + housing
+    }
+
     static func estimatedMonthlyTax(settings: SalarySettings) -> Double {
         let monthlyTaxable = max(0, settings.monthlySalary - 5000
-            - max(0, settings.monthlySocialInsurance)
+            - estimatedMonthlyContributions(settings: settings)
             - max(0, settings.monthlySpecialDeductions))
         let annualTaxable = monthlyTaxable * 12
         let brackets: [(Double, Double, Double)] = [

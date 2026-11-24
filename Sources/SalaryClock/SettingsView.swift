@@ -25,9 +25,12 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     salarySection
                     taxSection
+                    wishListSection
                     scheduleSection
                     timeSection
                     displaySection
+                    privacySection
+                    reminderSection
                     appearanceSection
                     calculationNote
                 }
@@ -100,14 +103,53 @@ struct SettingsView: View {
         SettingsCard(title: "税后工资", subtitle: "按中国居民综合所得年度税率估算月度个税", icon: "receipt") {
             Toggle("使用税后工资计算收入", isOn: $model.settings.useAfterTaxSalary)
                 .toggleStyle(.switch)
-            HStack {
-                Text("月度社保 / 公积金个人缴纳")
-                Spacer()
-                TextField("0", value: $model.settings.monthlySocialInsurance, format: .number.precision(.fractionLength(0...2)))
-                    .multilineTextAlignment(.trailing).textFieldStyle(.roundedBorder).frame(width: 112)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text("社保缴费基数（元/月）").font(.system(size: 10)).foregroundStyle(.secondary)
+                            HelpPopover(title: "社保缴费基数", message: "不是到手工资，也不一定等于本月税前工资。按工资单或随申办中显示的社保缴费基数填写。上海 2026 社保年度基数范围为 7,546～37,731 元。")
+                        }
+                        TextField("社保基数", value: $model.settings.socialInsuranceBase, format: .number.precision(.fractionLength(0...2)))
+                            .textFieldStyle(.roundedBorder)
+                        Text("社保个人比例").font(.system(size: 10)).foregroundStyle(.secondary)
+                        HStack(spacing: 3) {
+                            TextField("10.5", value: $model.settings.socialInsuranceRate, format: .number.precision(.fractionLength(0...2)))
+                                .textFieldStyle(.roundedBorder)
+                            Text("%").foregroundStyle(.secondary)
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text("公积金缴费基数（元/月）").font(.system(size: 10)).foregroundStyle(.secondary)
+                            HelpPopover(title: "公积金缴费基数", message: "按工资单或上海公积金账户显示的缴存基数填写。它可能与社保缴费基数不同。上海 2026 年度缴存基数范围为 2,740～37,731 元。")
+                        }
+                        TextField("公积金基数", value: $model.settings.housingFundBase, format: .number.precision(.fractionLength(0...2)))
+                            .textFieldStyle(.roundedBorder)
+                        Text("公积金个人比例").font(.system(size: 10)).foregroundStyle(.secondary)
+                        HStack(spacing: 3) {
+                            TextField("7", value: $model.settings.housingFundRate, format: .number.precision(.fractionLength(0...2)))
+                                .textFieldStyle(.roundedBorder)
+                            Text("%").foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                HStack {
+                    Text("预计个人社保 + 公积金")
+                    Spacer()
+                    Text("¥ " + String(format: "%.2f", SalaryCalculator.estimatedMonthlyContributions(settings: model.settings)))
+                        .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
+                }
             }
+            Divider()
             HStack {
-                Text("月度专项附加扣除")
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 5) {
+                        Text("专项附加扣除（元/月）")
+                        HelpPopover(title: "专项附加扣除怎么填？", message: "填写个人所得税专项附加扣除的月度合计，例如子女教育、继续教育、住房贷款利息、住房租金、赡养老人等。没有符合条件的扣除项目就填 0。这里填的是税前扣除额，不是实际报销金额。")
+                    }
+                    Text("没有符合条件的项目就填 0；不确定时可先填 0").font(.system(size: 9)).foregroundStyle(.secondary)
+                }
                 Spacer()
                 TextField("0", value: $model.settings.monthlySpecialDeductions, format: .number.precision(.fractionLength(0...2)))
                     .multilineTextAlignment(.trailing).textFieldStyle(.roundedBorder).frame(width: 112)
@@ -128,7 +170,70 @@ struct SettingsView: View {
                 Text("¥ " + String(format: "%.2f", model.snapshot.tax))
                     .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
             }
-            helpText("估算采用年度综合所得税率表，按全年 12 个月工资相同计算。社保 / 公积金和专项附加扣除需自行填写；未录入的年终奖、其他收入、专项扣除及累计预扣差异不会自动纳入。结果仅供参考，不等同于工资单或个税申报金额。")
+            helpText("上海职工社保个人比例默认 10.5%（养老 8% + 医疗 2% + 失业 0.5%），公积金默认 7%，均可修改。社保和公积金基数分别填写，按本人实际申报基数为准；上海 2026 社保基数为 7,546～37,731 元，公积金基数为 2,740～37,731 元。专项附加扣除填写你实际享受的月度扣除合计。个税按全年 12 个月工资相同估算，实际金额会受累计预扣、年终奖及其他扣除影响。")
+        }
+    }
+
+    private var wishListSection: some View {
+        SettingsCard(title: "愿望清单", subtitle: "记录目标金额和已存金额，查看完成进度", icon: "target") {
+            ForEach($model.settings.wishList) { $wish in
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack {
+                        TextField("目标名称，例如：旅行 / 新电脑", text: $wish.name).textFieldStyle(.roundedBorder)
+                        Button(role: .destructive) {
+                            model.settings.wishList.removeAll { $0.id == wish.id }
+                        } label: { Image(systemName: "trash").foregroundStyle(.secondary) }
+                            .buttonStyle(.plain).help("删除目标")
+                    }
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("目标金额").font(.system(size: 9)).foregroundStyle(.secondary)
+                            TextField("目标金额", value: $wish.targetAmount, format: .number.precision(.fractionLength(0...2))).textFieldStyle(.roundedBorder)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("已存金额").font(.system(size: 9)).foregroundStyle(.secondary)
+                            TextField("已存金额", value: $wish.savedAmount, format: .number.precision(.fractionLength(0...2))).textFieldStyle(.roundedBorder)
+                        }
+                    }
+                    ProgressView(value: wish.targetAmount > 0 ? min(1, max(0, wish.savedAmount / wish.targetAmount)) : 0)
+                    HStack {
+                        Text("完成 \(wish.targetAmount > 0 ? Int(min(100, max(0, wish.savedAmount / wish.targetAmount * 100))) : 0)%")
+                        Spacer()
+                        Text("还差 ¥\(String(format: "%.2f", max(0, wish.targetAmount - wish.savedAmount)))")
+                    }.font(.system(size: 10, weight: .medium, design: .rounded)).foregroundStyle(.secondary)
+                }
+                if wish.id != model.settings.wishList.last?.id { Divider() }
+            }
+            Button {
+                model.settings.wishList.append(SalaryWish(name: "新目标", targetAmount: 10000))
+            } label: {
+                Label("添加愿望目标", systemImage: "plus.circle.fill")
+            }.buttonStyle(.borderless)
+        }
+    }
+
+    private var privacySection: some View {
+        SettingsCard(title: "隐私模式", subtitle: "隐藏桌面挂件中的所有收入金额", icon: "eye.slash") {
+            Toggle("隐藏收入金额", isOn: $model.settings.privacyMode).toggleStyle(.switch)
+            helpText("开启后，今日收入、本周 / 本月累计、时薪和日薪均显示为遮罩；工作进度百分比仍正常显示。可通过挂件上的眼睛图标快速切换。")
+        }
+    }
+
+    private var reminderSection: some View {
+        SettingsCard(title: "下班提醒", subtitle: "到设定时间后发送系统通知", icon: "bell") {
+            Toggle("启用下班提醒", isOn: $model.settings.afterWorkReminderEnabled).toggleStyle(.switch)
+            HStack {
+                Text("提醒时间")
+                Spacer()
+                Picker("小时", selection: $model.settings.afterWorkReminderHour) {
+                    ForEach(0..<24, id: \.self) { Text(String(format: "%02d", $0)).tag($0) }
+                }.labelsHidden().frame(width: 78)
+                Text(":")
+                Picker("分钟", selection: $model.settings.afterWorkReminderMinute) {
+                    ForEach([0, 5, 10, 15, 20, 30, 40, 45, 50, 55], id: \.self) { Text(String(format: "%02d", $0)).tag($0) }
+                }.labelsHidden().frame(width: 78)
+            }
+            helpText("启用后需要允许 macOS 通知权限。提醒每天在设定时间触发；修改工作时间不会自动改变提醒时间。")
         }
     }
 
@@ -169,13 +274,12 @@ struct SettingsView: View {
 
     private var timeSection: some View {
         SettingsCard(title: "工作时间", subtitle: "午休时段会从有效计薪时间中扣除", icon: "clock") {
-            timeRow("上班", hour: $model.settings.startHour, minute: $model.settings.startMinute)
-            Divider()
-            timeRow("下班", hour: $model.settings.endHour, minute: $model.settings.endMinute)
-            Divider()
-            timeRow("午休开始", hour: $model.settings.lunchStartHour, minute: $model.settings.lunchStartMinute)
-            Divider()
-            timeRow("午休结束", hour: $model.settings.lunchEndHour, minute: $model.settings.lunchEndMinute)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], alignment: .leading, spacing: 12) {
+                timeField("上班", hour: $model.settings.startHour, minute: $model.settings.startMinute)
+                timeField("下班", hour: $model.settings.endHour, minute: $model.settings.endMinute)
+                timeField("午休开始", hour: $model.settings.lunchStartHour, minute: $model.settings.lunchStartMinute)
+                timeField("午休结束", hour: $model.settings.lunchEndHour, minute: $model.settings.lunchEndMinute)
+            }
         }
     }
 
@@ -256,19 +360,18 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func timeRow(_ title: String, hour: Binding<Int>, minute: Binding<Int>) -> some View {
-        HStack {
-            Text(title).frame(width: 90, alignment: .leading)
-            Spacer()
-            Picker("小时", selection: hour) {
-                ForEach(0..<24, id: \.self) { Text(String(format: "%02d", $0)).tag($0) }
-            }.labelsHidden().frame(width: 76)
-            Text(":").foregroundStyle(.secondary)
-            Picker("分钟", selection: minute) {
-                ForEach([0, 5, 10, 15, 20, 30, 40, 45, 50, 55], id: \.self) {
-                    Text(String(format: "%02d", $0)).tag($0)
-                }
-            }.labelsHidden().frame(width: 76)
+    private func timeField(_ title: String, hour: Binding<Int>, minute: Binding<Int>) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+            HStack(spacing: 3) {
+                Picker("小时", selection: hour) {
+                    ForEach(0..<24, id: \.self) { Text(String(format: "%02d", $0)).tag($0) }
+                }.labelsHidden().frame(maxWidth: .infinity)
+                Text(":").foregroundStyle(.secondary)
+                Picker("分钟", selection: minute) {
+                    ForEach([0, 5, 10, 15, 20, 30, 40, 45, 50, 55], id: \.self) { Text(String(format: "%02d", $0)).tag($0) }
+                }.labelsHidden().frame(maxWidth: .infinity)
+            }
         }
     }
 
