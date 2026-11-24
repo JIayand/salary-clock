@@ -39,6 +39,15 @@ final class SalaryClockModel: ObservableObject {
         SalaryCalculator.snapshot(settings: settings, now: now)
     }
 
+    func snapshot(for member: FamilySalaryMember) -> SalarySnapshot {
+        var memberSettings = settings
+        memberSettings.monthlySalary = max(0, member.monthlySalary)
+        memberSettings.socialInsuranceBase = max(0, member.monthlySalary)
+        memberSettings.housingFundBase = max(0, member.monthlySalary)
+        memberSettings.useAfterTaxSalary = false
+        return SalaryCalculator.snapshot(settings: memberSettings, now: now)
+    }
+
     func configureAfterWorkReminder() {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["salary-clock-after-work"])

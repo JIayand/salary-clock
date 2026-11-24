@@ -66,6 +66,8 @@ struct CalculatorChecks {
         let migrated = try! JSONDecoder().decode(SalarySettings.self, from: legacyJSON)
         precondition(migrated.monthlySalary == 12000 && migrated.useChinaHolidayCalendar && migrated.windowOpacity == 0.96 && migrated.showWeekEarned && migrated.showMonthEarned && migrated.showProgress && migrated.showHourlyRate && migrated.showDailyRate && migrated.showWorkDuration && !migrated.compactMode,
                      "旧版本配置向前兼容失败")
+        precondition(migrated.familyMembers.isEmpty && !migrated.windowLocked,
+                     "旧配置的家庭成员和窗口锁定默认值迁移失败")
         var compactSettings = migrated
         compactSettings.compactMode = true
         let compactData = try! JSONEncoder().encode(compactSettings)
@@ -111,6 +113,22 @@ struct CalculatorChecks {
                      && featureReloaded.wishList[0].targetAmount == 20000 && featureReloaded.wishList[0].savedAmount == 5000,
                      "愿望清单配置持久化失败")
 
-        print("通过：32 项检查（薪资计算、工作时间、节假日与补班、配置兼容、税后工资、愿望清单、下班提醒、隐私模式及动画设置）")
+        var familySettings = migrated
+        familySettings.familyMembers = [
+            FamilySalaryMember(name: "伴侣", monthlySalary: 18000),
+            FamilySalaryMember(name: "父亲", monthlySalary: 9000)
+        ]
+        familySettings.windowLocked = true
+        let familyData = try! JSONEncoder().encode(familySettings)
+        let familyReloaded = try! JSONDecoder().decode(SalarySettings.self, from: familyData)
+        precondition(familyReloaded.familyMembers.count == 2
+                     && familyReloaded.familyMembers[0].name == "伴侣"
+                     && familyReloaded.familyMembers[0].monthlySalary == 18000
+                     && familyReloaded.familyMembers[1].name == "父亲"
+                     && familyReloaded.familyMembers[1].monthlySalary == 9000,
+                     "家庭成员姓名和月薪配置持久化失败")
+        precondition(familyReloaded.windowLocked, "窗口锁定状态持久化失败")
+
+        print("通过：35 项检查（薪资计算、工作时间、节假日与补班、配置兼容、家庭成员薪资、窗口锁定、税后工资、愿望清单、下班提醒、隐私模式及动画设置）")
     }
 }

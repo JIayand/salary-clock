@@ -11,7 +11,7 @@ struct SalaryClockApp: App {
         WindowGroup {
             FloatingWidgetView()
                 .environmentObject(model)
-                .background(WindowConfigurator())
+                .background(WindowConfigurator(isLocked: model.settings.windowLocked))
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
@@ -83,14 +83,23 @@ final class SalaryClockAppDelegate: NSObject, NSApplicationDelegate, UNUserNotif
 }
 
 struct WindowConfigurator: NSViewRepresentable {
+    var isLocked: Bool
+
     func makeNSView(context: Context) -> NSView {
-        WindowConfigView()
+        let view = WindowConfigView()
+        view.isLocked = isLocked
+        return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? WindowConfigView)?.isLocked = isLocked
+    }
 }
 
 private final class WindowConfigView: NSView {
+    var isLocked = false {
+        didSet { if let window { window.isMovableByWindowBackground = !isLocked } }
+    }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         guard let window else { return }
@@ -108,7 +117,7 @@ private final class WindowConfigView: NSView {
         window.backgroundColor = .clear
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
+        window.isMovableByWindowBackground = !isLocked
         window.hasShadow = true
         window.hidesOnDeactivate = false
         window.animationBehavior = .utilityWindow

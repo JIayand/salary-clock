@@ -24,6 +24,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     salarySection
+                    familySection
                     taxSection
                     wishListSection
                     scheduleSection
@@ -96,6 +97,42 @@ struct SettingsView: View {
             }
             Text("金额精度和百分比精度分别设置，互不影响。")
                 .font(.system(size: 10)).foregroundStyle(.secondary)
+        }
+    }
+
+    private var familySection: some View {
+        SettingsCard(title: "家庭成员薪资", subtitle: "为家人分别设置姓名和月薪，挂件中展示各自今日实时收入", icon: "person.2") {
+            if model.settings.familyMembers.isEmpty {
+                Text("尚未添加家庭成员。添加后会与本人收入一起显示。")
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
+            }
+            ForEach($model.settings.familyMembers) { $member in
+                VStack(spacing: 7) {
+                    HStack(spacing: 8) {
+                        TextField("成员名称", text: $member.name)
+                            .textFieldStyle(.roundedBorder)
+                        Button(role: .destructive) {
+                            model.settings.familyMembers.removeAll { $0.id == member.id }
+                        } label: {
+                            Image(systemName: "trash").foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain).help("删除家庭成员")
+                    }
+                    HStack {
+                        Text("月薪（元）").font(.system(size: 11))
+                        Spacer()
+                        TextField("月薪", value: $member.monthlySalary, format: .number.precision(.fractionLength(0...2)))
+                            .multilineTextAlignment(.trailing).textFieldStyle(.roundedBorder).frame(width: 142)
+                    }
+                }
+                if member.id != model.settings.familyMembers.last?.id { Divider() }
+            }
+            Button {
+                model.settings.familyMembers.append(FamilySalaryMember(name: "家庭成员 \(model.settings.familyMembers.count + 1)", monthlySalary: 10000))
+            } label: {
+                Label("添加家庭成员", systemImage: "plus.circle.fill")
+            }.buttonStyle(.borderless)
+            helpText("成员收入按当前工作日、工作时间、午休和节假日规则估算；暂不单独配置成员的社保、公积金及个税。隐私模式开启时会同时隐藏成员收入金额。")
         }
     }
 
@@ -295,6 +332,10 @@ struct SettingsView: View {
             VStack(spacing: 0) {
                 ToggleRow(title: "紧凑悬浮模式", subtitle: "默认收起，鼠标移入展开详情", isOn: $model.settings.compactMode) {
                     HelpPopover(title: "紧凑悬浮模式", message: "开启后，挂件平时只显示今日收入和进度条。鼠标移入挂件会自动展开全部统计，移出后收起。点击挂件可以固定展开；展开状态下点击收起图标可恢复自动收起。")
+                }
+                Divider().padding(.leading, 2)
+                ToggleRow(title: "锁定挂件位置", subtitle: "开启后禁止拖动窗口，避免误移动", isOn: $model.settings.windowLocked) {
+                    HelpPopover(title: "锁定挂件位置", message: "也可以直接点击桌面挂件顶部的锁形图标快速锁定或解锁。")
                 }
                 Divider().padding(.leading, 2)
                 HStack {

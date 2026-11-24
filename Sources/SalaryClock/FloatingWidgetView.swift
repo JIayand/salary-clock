@@ -78,6 +78,7 @@ struct FloatingWidgetView: View {
                 Spacer(minLength: 2)
                 VStack(alignment: .trailing, spacing: 5) {
                     HStack(spacing: 5) {
+                        lockButton
                         privacyButton
                         Button { SettingsWindowController.shared.show(model: model) } label: {
                             Image(systemName: "slider.horizontal.3").font(.system(size: 12, weight: .medium))
@@ -114,6 +115,7 @@ struct FloatingWidgetView: View {
                 Text(Date.now.formatted(.dateTime.month(.abbreviated).day()))
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(foreground.opacity(0.4))
+                lockButton
                 privacyButton
                 Button {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
@@ -187,6 +189,29 @@ struct FloatingWidgetView: View {
                     }
                 }
             }
+
+            if !model.settings.familyMembers.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("家庭成员收入").font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(foreground.opacity(0.58))
+                        Spacer()
+                        Text("实时估算").font(.system(size: 9)).foregroundStyle(foreground.opacity(0.38))
+                    }
+                    ForEach(model.settings.familyMembers) { member in
+                        let memberSnapshot = model.snapshot(for: member)
+                        HStack(spacing: 8) {
+                            Text(member.name).font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(foreground.opacity(0.86)).lineLimit(1)
+                            Spacer(minLength: 4)
+                            Text(model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, memberSnapshot.earned))
+                                .font(.system(size: 12, weight: .semibold, design: .rounded).monospacedDigit())
+                                .foregroundStyle(accent)
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
         }
         .padding(17)
         .background(background.opacity(model.settings.windowOpacity), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
@@ -219,6 +244,17 @@ struct FloatingWidgetView: View {
         }
         return model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, s.earned)
     }
+    private var lockButton: some View {
+        Button { model.settings.windowLocked.toggle() } label: {
+            Image(systemName: model.settings.windowLocked ? "lock.fill" : "lock.open")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(model.settings.windowLocked ? accent : foreground.opacity(0.72))
+                .frame(width: 22, height: 22)
+        }
+        .buttonStyle(.plain)
+        .help(model.settings.windowLocked ? "已锁定位置，点击解锁后可拖动" : "锁定当前位置，防止误拖动")
+    }
+
     private var privacyButton: some View {
         Button { model.settings.privacyMode.toggle() } label: {
             Image(systemName: model.settings.privacyMode ? "eye.slash" : "eye")

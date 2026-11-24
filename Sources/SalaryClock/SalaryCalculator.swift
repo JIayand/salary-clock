@@ -36,6 +36,8 @@ struct SalarySettings: Codable {
     var afterWorkReminderHour: Int = 18
     var afterWorkReminderMinute: Int = 0
     var wishList: [SalaryWish] = []
+    var familyMembers: [FamilySalaryMember] = []
+    var windowLocked: Bool = false
 
     private enum CodingKeys: String, CodingKey {
         case monthlySalary, workdays, startHour, startMinute, endHour, endMinute
@@ -44,6 +46,7 @@ struct SalarySettings: Codable {
         case showWeekEarned, showMonthEarned, showProgress, showHourlyRate, showDailyRate, showWorkDuration, compactMode
         case useAfterTaxSalary, socialInsuranceBase, socialInsuranceRate, housingFundBase, housingFundRate, monthlySpecialDeductions, numberAnimation
         case privacyMode, afterWorkReminderEnabled, afterWorkReminderHour, afterWorkReminderMinute, wishList
+        case familyMembers, windowLocked
     }
 
     init() {}
@@ -85,7 +88,15 @@ struct SalarySettings: Codable {
         afterWorkReminderHour = try values.decodeIfPresent(Int.self, forKey: .afterWorkReminderHour) ?? endHour
         afterWorkReminderMinute = try values.decodeIfPresent(Int.self, forKey: .afterWorkReminderMinute) ?? endMinute
         wishList = try values.decodeIfPresent([SalaryWish].self, forKey: .wishList) ?? []
+        familyMembers = try values.decodeIfPresent([FamilySalaryMember].self, forKey: .familyMembers) ?? []
+        windowLocked = try values.decodeIfPresent(Bool.self, forKey: .windowLocked) ?? false
     }
+}
+
+struct FamilySalaryMember: Codable, Identifiable, Equatable {
+    var id: UUID = UUID()
+    var name: String
+    var monthlySalary: Double
 }
 
 struct SalaryWish: Codable, Identifiable, Equatable {
