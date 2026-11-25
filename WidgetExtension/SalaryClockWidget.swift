@@ -175,6 +175,7 @@ private struct SalaryClockWidgetContent: View {
                 .foregroundStyle(foreground.opacity(0.58))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
+            if entry.snapshot.isOvertime { overtimeStatusLine }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -208,6 +209,7 @@ private struct SalaryClockWidgetContent: View {
                     .foregroundStyle(foreground.opacity(0.55))
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
+                if entry.snapshot.isOvertime { overtimeStatusLine }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 
@@ -263,10 +265,11 @@ private struct SalaryClockWidgetContent: View {
                 .foregroundStyle(foreground.opacity(0.55))
                 .padding(.top, 9)
 
-            if entry.settings.showWorkDuration {
+            if entry.settings.showWorkDuration && !entry.snapshot.isOvertime {
                 workDurationLine
                     .padding(.top, 11)
             }
+            if entry.snapshot.isOvertime { overtimeStatusLine.padding(.top, 7) }
 
             Rectangle()
                 .fill(foreground.opacity(0.12))
@@ -332,14 +335,15 @@ private struct SalaryClockWidgetContent: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.58)
             Text(progressText)
-                .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
-                .foregroundStyle(foreground.opacity(0.72))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(foreground.opacity(0.72))
             if entry.settings.showProgress {
                 progressBar(height: 7)
             }
-            if entry.settings.showWorkDuration {
+            if entry.settings.showWorkDuration && !entry.snapshot.isOvertime {
                 workDurationLine
             }
+            if entry.snapshot.isOvertime { overtimeStatusLine }
             Text(scheduleText)
                 .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
                 .foregroundStyle(foreground.opacity(0.55))
@@ -453,7 +457,7 @@ private struct SalaryClockWidgetContent: View {
                 Spacer(minLength: 2)
                 Text(String(format: "%.*f%%", entry.settings.percentDecimals, row.snapshot.progress * 100))
                     .font(.system(size: 10, weight: .semibold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(accent)
+                    .foregroundStyle(foreground.opacity(0.72))
             }
             Text(entry.settings.privacyMode ? "¥••••" : String(format: "¥%.*f", entry.settings.decimals, row.snapshot.earned))
                 .font(.system(size: 21, weight: .bold, design: .rounded).monospacedDigit())
@@ -468,9 +472,14 @@ private struct SalaryClockWidgetContent: View {
             }
             .frame(height: 5)
             HStack {
-                Text("已工作 \(duration(row.snapshot.elapsedWorkSeconds))")
-                Spacer(minLength: 3)
-                Text("剩余 \(duration(row.snapshot.remainingSeconds))")
+                if row.snapshot.isOvertime {
+                    Text("已加班 \(overtimeText(row.snapshot.overtimeSeconds))")
+                        .foregroundStyle(overtimeColor)
+                } else {
+                    Text("已工作 \(duration(row.snapshot.elapsedWorkSeconds))")
+                    Spacer(minLength: 3)
+                    Text("剩余 \(duration(row.snapshot.remainingSeconds))")
+                }
             }
             .font(.system(size: 9, weight: .medium, design: .rounded).monospacedDigit())
             .foregroundStyle(foreground.opacity(0.52))
@@ -518,6 +527,12 @@ private struct SalaryClockWidgetContent: View {
         let start = String(format: "%02d:%02d", entry.settings.startHour, entry.settings.startMinute)
         let end = String(format: "%02d:%02d", entry.settings.endHour, entry.settings.endMinute)
         return localized("上班", "上班", "Start") + " " + start + "   " + localized("下班", "下班", "End") + " " + end
+    }
+
+    private var overtimeStatusLine: some View {
+        Text("\(localized("已加班", "已加班", "Overtime"))  \(overtimeText(entry.snapshot.overtimeSeconds))")
+            .font(.system(size: 10, weight: .semibold, design: .rounded).monospacedDigit())
+            .foregroundStyle(overtimeColor)
     }
 
     private var workDurationLine: some View {
@@ -578,6 +593,13 @@ private struct SalaryClockWidgetContent: View {
             return String(format: "%.*f%%", entry.settings.percentDecimals, entry.snapshot.progress * 100)
         }
         return String(format: "¥%.*f", entry.settings.decimals, entry.snapshot.earned)
+    }
+
+    private var overtimeColor: Color { Color(red: 1.0, green: 0.29, blue: 0.31) }
+
+    private func overtimeText(_ seconds: TimeInterval) -> String {
+        let value = Int(max(0, seconds))
+        return String(format: "%02d:%02d:%02d", value / 3600, (value % 3600) / 60, value % 60)
     }
 
     private func displayMoney(_ value: Double) -> String {

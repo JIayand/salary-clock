@@ -42,7 +42,8 @@ struct SettingsView: View {
          ("桌面显示", "rectangle.on.rectangle", "挂件布局、统计与位置锁定"),
          ("提醒与目标", "bell.badge", "愿望清单与下班提醒"),
          ("外观与隐私", "paintpalette", "主题、透明度与隐私模式"),
-         ("操作手册", "book.closed", "功能说明、搜索与使用案例")]
+         ("操作手册", "book.closed", "功能说明、搜索与使用案例"),
+         ("关于", "info.circle", "应用版本与产品信息")]
     }
 
     var body: some View {
@@ -75,6 +76,8 @@ struct SettingsView: View {
                                 reminderSection
                             } else if selectedCategory == "操作手册" {
                                 manualSection
+                            } else if selectedCategory == "关于" {
+                                aboutSection
                             } else {
                                 appearanceSection
                                 privacySection
@@ -603,6 +606,40 @@ struct SettingsView: View {
             } label: {
                 Label("添加愿望目标", systemImage: "plus.circle.fill")
             }.buttonStyle(.borderless)
+        }
+    }
+
+    private var aboutSection: some View {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let version = info["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info["CFBundleVersion"] as? String ?? "—"
+
+        return SettingsCard(title: "薪资时钟", subtitle: "应用信息", icon: "info.circle") {
+            HStack(spacing: 14) {
+                Image(nsImage: NSApplication.shared.applicationIconImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 52, height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("薪资时钟").font(.system(size: 15, weight: .semibold))
+                    Text("Salary Clock").font(.system(size: 10)).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            Divider()
+            HStack {
+                Label("版本号", systemImage: "tag")
+                Spacer()
+                Text("v\(version)").font(.system(size: 12, weight: .semibold, design: .rounded)).monospacedDigit()
+            }
+            HStack {
+                Label("构建版本", systemImage: "hammer")
+                Spacer()
+                Text(build).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+            }
+            Text("版本信息从应用自身的构建配置读取。")
+                .font(.system(size: 10)).foregroundStyle(.secondary)
         }
     }
 

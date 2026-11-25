@@ -6,8 +6,8 @@ struct CalculatorChecks {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
 
-        func date(_ year: Int, _ month: Int, _ day: Int, _ hour: Int = 10, _ minute: Int = 0) -> Date {
-            calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
+        func date(_ year: Int, _ month: Int, _ day: Int, _ hour: Int = 10, _ minute: Int = 0, _ second: Int = 0) -> Date {
+            calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute, second: second))!
         }
 
         var settings = SalarySettings()
@@ -29,6 +29,14 @@ struct CalculatorChecks {
         precondition(abs(afterLunch.progress - lunch.progress) < 0.0001, "午休结束瞬间金额不应跳变")
         precondition(abs(lunch.remainingSeconds - 5 * 3600) < 1, "午休期间剩余工作时间错误")
         precondition(abs(finish.progress - 1.0) < 0.0001, "下班时进度应为 100%")
+        let justAfterFinish = SalaryCalculator.snapshot(settings: settings, now: date(2026, 11, 24, 18, 0, 5), calendar: calendar)
+        let oneHourOvertime = SalaryCalculator.snapshot(settings: settings, now: date(2026, 11, 24, 19, 0), calendar: calendar)
+        precondition(finish.isOvertime && finish.overtimeSeconds == 0, "到达下班时刻应立即切换为加班状态并从零开始计时")
+        precondition(justAfterFinish.isOvertime && abs(justAfterFinish.overtimeSeconds - 5) < 0.01, "下班后应从零开始累计加班秒数")
+        precondition(oneHourOvertime.isOvertime && abs(oneHourOvertime.overtimeSeconds - 3600) < 0.01, "加班一小时应累计 3600 秒")
+        precondition(oneHourOvertime.progress == 1 && abs(oneHourOvertime.earned - finish.earned) < 0.001, "加班不应继续增加正常工时进度或日薪金额")
+        let sundayAfterHours = SalaryCalculator.snapshot(settings: settings, now: date(2026, 11, 29, 22), calendar: calendar)
+        precondition(!sundayAfterHours.isOvertime && sundayAfterHours.overtimeSeconds == 0, "非工作日不应累计加班")
         precondition(abs(finish.earned - 22000.0 / Double(finish.monthlyWorkdays)) < 0.01, "日薪金额计算错误")
         precondition(!sunday.isWorkday && sunday.earned == 0, "普通周日不应累计收入")
         precondition(abs(morning.dailyRate - 22000.0 / Double(morning.monthlyWorkdays)) < 0.01, "日薪字段计算错误")

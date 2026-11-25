@@ -147,6 +147,9 @@ struct FloatingWidgetView: View {
                     }
                 }.frame(height: 3)
             }
+            if snapshot.isOvertime {
+                overtimeStatusLine(snapshot)
+            }
         }
         .padding(.horizontal, 13).padding(.vertical, 10)
         .background(background.opacity(model.settings.windowOpacity), in: Capsule())
@@ -201,6 +204,9 @@ struct FloatingWidgetView: View {
                         .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
                         .foregroundStyle(foreground.opacity(0.68))
                 }
+                if snapshot.isOvertime {
+                    overtimeStatusLine(snapshot)
+                }
             }
 
             if (model.settings.showProgress && model.settings.mode == .money) || model.settings.showWorkDuration {
@@ -218,7 +224,7 @@ struct FloatingWidgetView: View {
                             .foregroundStyle(foreground.opacity(0.55))
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    if model.settings.showWorkDuration {
+                    if model.settings.showWorkDuration && !snapshot.isOvertime {
                         HStack(spacing: 6) {
                             if model.settings.hourglassAnimationEnabled {
                                 TimelineView(.animation(minimumInterval: 0.8, paused: false)) { context in
@@ -456,6 +462,21 @@ struct FloatingWidgetView: View {
         if snapshot.isWorkday { return AppLocalization.string("当前非计薪时段", language: model.settings.language) }
         return AppLocalization.string("今天不是工作日", language: model.settings.language)
     }
+    private func overtimeStatusLine(_ snapshot: SalarySnapshot) -> some View {
+        HStack(spacing: 5) {
+            Text("已加班")
+            Text(overtimeDuration(snapshot.overtimeSeconds))
+                .monospacedDigit()
+        }
+        .font(.system(size: 10, weight: .semibold, design: .rounded))
+        .foregroundStyle(Color(red: 1.0, green: 0.29, blue: 0.31))
+    }
+
+    private func overtimeDuration(_ seconds: TimeInterval) -> String {
+        let value = Int(max(0, seconds))
+        return String(format: "%02d:%02d:%02d", value / 3600, (value % 3600) / 60, value % 60)
+    }
+
     private func primaryValue(_ s: SalarySnapshot) -> String {
         if model.settings.mode == .percent {
             return String(format: "%.*f%%", model.settings.percentDecimals, s.progress * 100)

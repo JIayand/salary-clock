@@ -257,6 +257,8 @@ struct SalarySnapshot {
     let isWorkday: Bool
     let isWorkingNow: Bool
     let remainingSeconds: TimeInterval
+    let overtimeSeconds: TimeInterval
+    let isOvertime: Bool
     let isPublicHoliday: Bool
     let isMakeupWorkday: Bool
     let dailyRate: Double
@@ -366,6 +368,9 @@ enum SalaryCalculator {
         let isLunch = validLunch && nowSeconds >= lunchStart && nowSeconds < lunchEnd
         let isWorking = dayStatus.isWorkday && nowSeconds >= start && nowSeconds < end && !isLunch
         let remaining = dayStatus.isWorkday ? max(0, total - elapsed) : 0
+        // 加班从个人排班下班时刻开始计算；仅工作日生效，休息日/法定假日不自动计为加班。
+        let overtime = dayStatus.isWorkday ? max(0, nowSeconds - end) : 0
+        let isOvertime = dayStatus.isWorkday && nowSeconds >= end
 
         return SalarySnapshot(
             earned: earned,
@@ -376,6 +381,8 @@ enum SalaryCalculator {
             isWorkday: dayStatus.isWorkday,
             isWorkingNow: isWorking,
             remainingSeconds: remaining,
+            overtimeSeconds: overtime,
+            isOvertime: isOvertime,
             isPublicHoliday: dayStatus.isHoliday,
             isMakeupWorkday: dayStatus.isMakeup,
             dailyRate: dailyRate,
@@ -453,6 +460,6 @@ enum SalaryCalculator {
     private static func emptySnapshot() -> SalarySnapshot {
         SalarySnapshot(earned: 0, progress: 0, todayWorkSeconds: 0, elapsedWorkSeconds: 0,
                        monthlyWorkdays: 0, isWorkday: false, isWorkingNow: false,
-                       remainingSeconds: 0, isPublicHoliday: false, isMakeupWorkday: false, dailyRate: 0, hourlyRate: 0, weekEarned: 0, monthEarned: 0, tax: 0, netMonthlySalary: 0, secondRate: 0, annualSalary: 0)
+                       remainingSeconds: 0, overtimeSeconds: 0, isOvertime: false, isPublicHoliday: false, isMakeupWorkday: false, dailyRate: 0, hourlyRate: 0, weekEarned: 0, monthEarned: 0, tax: 0, netMonthlySalary: 0, secondRate: 0, annualSalary: 0)
     }
 }
