@@ -66,7 +66,29 @@ private struct FamilyWidgetRow: Identifiable {
     let endMinute: Int
 }
 
+/// WidgetKit controls timeline reloads, but SwiftUI TimelineView can redraw
+/// time-derived content more frequently while the widget is actively rendered.
+/// The system may throttle this schedule; a five-second interval is best-effort,
+/// not a guaranteed real-time refresh contract.
 struct SalaryClockWidgetView: View {
+    let entry: SalaryClockWidgetEntry
+
+    var body: some View {
+        TimelineView(.periodic(from: entry.date, by: 5)) { context in
+            let liveEntry = SalaryClockWidgetEntry(
+                date: context.date,
+                settings: entry.settings,
+                snapshot: SalaryCalculator.snapshot(settings: entry.settings, now: context.date)
+            )
+            SalaryClockWidgetContent(entry: liveEntry)
+                // Widget 扩展必须显式采用系统当前语言环境，不能依赖扩展包的开发语言回退值。
+                .environment(\.locale, Locale.autoupdatingCurrent)
+        }
+        .environment(\.locale, Locale.autoupdatingCurrent)
+    }
+}
+
+private struct SalaryClockWidgetContent: View {
     @Environment(\.widgetFamily) private var family
     let entry: SalaryClockWidgetEntry
 

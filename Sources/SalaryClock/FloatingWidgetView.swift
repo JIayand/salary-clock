@@ -166,7 +166,7 @@ struct FloatingWidgetView: View {
                 Circle().fill(snapshot.isWorkingNow ? accent : foreground.opacity(0.35)).frame(width: 7, height: 7)
                 Text(statusText(snapshot)).font(.system(size: 11, weight: .medium)).foregroundStyle(foreground.opacity(0.74))
                 Spacer(minLength: 4)
-                Text(Date.now.formatted(.dateTime.month(.abbreviated).day()))
+                Text(Date.now.formatted(.dateTime.locale(.autoupdatingCurrent).month(.abbreviated).day()))
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(foreground.opacity(0.4))
                 if controlsVisible {
