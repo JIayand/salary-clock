@@ -633,7 +633,17 @@ struct SettingsView: View {
         let changelogURL = Bundle.main.url(forResource: "CHANGELOG", withExtension: "md")
         let changelog = changelogURL.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? "暂时无法读取更新日志。"
         let versions = parsedChangelogVersions(from: changelog)
-        let selectedContent = versions.first(where: { $0.version == selectedChangelogVersion })?.content
+        let selectedVersion = selectedChangelogVersion
+            ?? versions.first(where: { $0.version == version })?.version
+            ?? versions.first?.version
+        let selectedContent = versions.first(where: { $0.version == selectedVersion })?.content
+        let groupedVersions = Dictionary(grouping: versions) { item in
+            item.version.split(separator: ".").first.map(String.init) ?? "其他"
+        }
+        let majorVersions = groupedVersions.keys.sorted { lhs, rhs in
+            if let left = Int(lhs), let right = Int(rhs) { return left > right }
+            return Int(lhs) != nil
+        }
 
         return VStack(alignment: .leading, spacing: 14) {
             SettingsCard(title: "薪资时钟", subtitle: "", icon: "info.circle") {
@@ -664,55 +674,101 @@ struct SettingsView: View {
 
             SettingsCard(title: "更新日志", subtitle: "", icon: "clock.arrow.circlepath") {
                 if versions.isEmpty {
-                    Text(changelog).font(.system(size: 11)).textSelection(.enabled)
+                    Text(changelog).font(.system(size: 12)).textSelection(.enabled)
                 } else {
-                    HStack(spacing: 8) {
-                        ForEach(versions, id: \.version) { item in
-                            Button {
-                                selectedChangelogVersion = item.version
-                            } label: {
-                                HStack(spacing: 5) {
-                                    Text(item.version)
-                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                        .monospacedDigit()
-                                    if item.version == version {
-                                        Text("当前")
-                                            .font(.system(size: 9, weight: .medium))
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(majorVersions, id: \.self) { major in
+                            let items = groupedVersions[major] ?? []
+                            DisclosureGroup(
+                                isExpanded: Binding(
+                                    get: { selectedVersion?.split(separator: ".").first.map(String.init) == major },
+                                    set: { expanded in
+                                        if expanded, let first = items.first {
+                                            selectedChangelogVersion = first.version
+                                        }
+                                    }
+                                )
+                            ) {
+                                VStack(alignment: .leading, spacing: 5) {
+                                    ForEach(items, id: \.version) { item in
+                                        Button {
+                                            selectedChangelogVersion = item.version
+                                        } label: {
+                                            HStack {
+                                                Text("v\(item.version)")
+                                                    .font(.system(size: 12, weight: selectedVersion == item.version ? .semibold : .regular, design: .rounded))
+                                                    .monospacedDigit()
+                                                if item.version == version {
+                                                    Text("当前版本")
+                                                        .font(.system(size: 10, weight: .medium))
+                                                        .foregroundStyle(.green)
+                                                }
+                                                Spacer()
+                                                if selectedVersion == item.version {
+                                                    Image(systemName: "checkmark.circle.fill")
+                                                        .foregroundStyle(Color.accentColor)
+                                                }
+                                            }
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 7)
+                                            .background(selectedVersion == item.version ? Color.accentColor.opacity(0.10) : Color.clear,
+                                                        in: RoundedRectangle(cornerRadius: 7))
+                                            .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
                                     }
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 7)
-                                .background(
-                                    selectedChangelogVersion == item.version ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.045),
-                                    in: Capsule()
-                                )
-                                .overlay(Capsule().strokeBorder(selectedChangelogVersion == item.version ? Color.accentColor.opacity(0.45) : Color.primary.opacity(0.08), lineWidth: 1))
-                                .foregroundStyle(selectedChangelogVersion == item.version ? Color.accentColor : Color.primary.opacity(0.8))
+                                .padding(.leading, 8)
+                            } label: {
+                                HStack {
+                                    Text(major == "其他" ? "其他版本" : "v\(major).x")
+                                        .font(.system(size: 13, weight: .semibold))
+                                    Spacer()
+                                    Text("\(items.count) 个版本")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.secondary)
+                                }
                             }
-                            .buttonStyle(.plain)
+                            .padding(.vertical, 2)
                         }
                     }
-
                     Divider()
-                    if let selectedContent,
-                       let markdown = try? AttributedString(markdown: selectedContent) {
-                        Text(markdown)
-                            .font(.system(size: 11))
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else if let selectedContent {
-                        Text(selectedContent)
-                            .font(.system(size: 11))
-                            .textSelection(.enabled)
-                    } else {
-                        Label("选择上方版本标签，查看该版本的更新内容", systemImage: "hand.tap")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, minHeight: 70, alignment: .center)
+                    if let selectedContent {
+                        VStack(alignment: .leading, spacing: 9) {
+                            ForEach(Array(changelogEntries(from: selectedContent).enumerated()), id: \.offset) { index, entry in
+                                HStack(alignment: .firstTextBaseline, spacing: 9) {
+                                    Text("\(index + 1).")
+                                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                        .monospacedDigit()
+                                        .foregroundStyle(Color.accentColor)
+                                        .frame(width: 20, alignment: .trailing)
+                                    Text(entry)
+                                        .font(.system(size: 12))
+                                        .textSelection(.enabled)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
         }
+    }
+
+    private func changelogEntries(from content: String) -> [String] {
+        content
+            .components(separatedBy: .newlines)
+            .compactMap { line -> String? in
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return nil }
+                let digits = trimmed.prefix(while: { $0.isNumber })
+                guard !digits.isEmpty else { return nil }
+                let remainder = trimmed.dropFirst(digits.count)
+                guard remainder.first == "." else { return nil }
+                let entry = remainder.dropFirst().trimmingCharacters(in: .whitespaces)
+                return entry.isEmpty ? nil : entry
+            }
     }
 
     private func parsedChangelogVersions(from markdown: String) -> [(version: String, content: String)] {
@@ -809,7 +865,7 @@ struct SettingsView: View {
                 .labelsHidden().frame(width: 112)
             }
             HStack(spacing: 6) {
-                ForEach([(1,"日"),(2,"一"),(3,"二"),(4,"三"),(5,"四"),(6,"五"),(7,"六")], id: \.0) { day, label in
+                ForEach([(2,"一"),(3,"二"),(4,"三"),(5,"四"),(6,"五"),(7,"六"),(1,"日")], id: \.0) { day, label in
                     let selected = profileWorkdays.wrappedValue.contains(day)
                     Button {
                         var days = profileWorkdays.wrappedValue
@@ -977,11 +1033,12 @@ struct SettingsView: View {
                 ("拖动与位置锁定", "拖动、移动、锁定、解锁、窗口位置", "未锁定时，拖动挂件顶部左侧的文字区域即可移动窗口；右侧锁定、隐私和设置按钮仍可正常点击。点击挂件上的锁形按钮，或在“桌面显示”开启“锁定挂件位置”，即可禁止拖动；再次解锁后恢复拖动。位置会随窗口移动保存。", "将挂件拖到屏幕合适位置后点击锁形按钮，避免误触移动。"),
                 ("数字变化动画", "数字滚动、平滑淡变、动画", "在“桌面显示 → 动画与进度”选择“数字滚动”或“平滑淡变”。前者以数字滚动方式呈现收入变化，后者使用淡入淡出过渡。", "偏好稳定、柔和视觉效果时选择平滑淡变；希望突出金额实时变化时选择数字滚动。"),
                 ("愿望清单", "愿望、目标金额、已存金额、完成进度", "进入“提醒与目标 → 愿望清单”，添加目标名称、目标金额和已存金额。后续可修改已存金额，应用会根据已存金额与目标金额计算完成进度；不再需要的目标可删除。", "例如添加“旅行基金”，目标金额 10000 元，已存 3500 元，完成进度为 35%。"),
-                ("下班提醒与系统通知", "下班提醒、提醒时间、通知权限、测试通知", "进入“提醒与目标 → 下班提醒”，开启提醒并设置每天的提醒时、分。首次使用需要允许 macOS 通知权限；可点击“发送测试通知”检查系统是否正常投递。提醒时间的小时和分钟支持直接键盘输入，范围分别为 0–23 和 0–59；提醒时间独立于下班时间，修改工作时间不会自动修改提醒时间。", "如果没有收到提醒，先发送测试通知，再检查 macOS“系统设置 → 通知”中的薪资时钟权限。"),
+                ("下班提醒与系统通知", "下班提醒、提醒时间、通知权限、测试通知", "进入“提醒与目标 → 下班提醒”，开启提醒并设置每天的提醒时、分。首次使用需要允许 macOS 通知权限；可点击“发送测试通知”检查系统是否正常投递。提醒时间独立于下班时间；应用会校验系统是否保留定时任务，并在重新激活时重新配置。", "如果没有收到提醒，先发送测试通知，再检查 macOS“系统设置 → 通知”中的薪资时钟权限和设置页的定时任务状态。"),
                 ("隐私模式", "隐私、隐藏金额、遮罩、眼睛按钮", "在“通用设置 → 隐私模式”开启隐私模式，或点击挂件上的眼睛按钮快速切换。隐私模式会遮挡本人和家庭成员的收入金额，包括今日、本周、本月、时薪和日薪等金额；工作进度百分比和时间仍可见。", "屏幕共享或演示时开启隐私模式；结束后可再次点击眼睛按钮恢复金额。"),
                 ("主题与背景透明度", "主题、深空、纸感、霓虹、海盐蓝、日落橙、石墨灰、透明度", "进入“通用设置 → 外观”选择深空、纸感、霓虹、海盐蓝、日落橙或石墨灰主题，并拖动背景透明度滑块调整挂件背景。设置立即生效并自动保存。", "深色桌面可选择深空或石墨灰；希望浅色外观可选择纸感。"),
                 ("界面语言", "语言、简体中文、繁体中文、English", "在“通用设置 → 外观”选择简体中文、繁体中文或 English。设置页、桌面挂件、菜单栏和系统通知会跟随语言切换。", "切换语言后无需重启，界面会自动应用所选语言。"),
-                ("薪资计算口径与限制", "日薪、时薪、秒薪、今日收入、本周、本月、加班", "日薪按月薪除以当月计薪工作日计算；时薪按日薪除以每日有效工时计算；今日收入按今日有效工作进度估算。本周和本月累计包含已完成工作日收入及今天的实时进度，启用午休时该时段不计薪；关闭午休时按完整上下班时段计算。当前不单独计算加班费、请假扣薪和年终奖个税，也不支持跨午夜班次。", "若实际工资包含加班费、绩效或请假扣款，挂件数值应视为按当前规则计算的估算值，而不是工资单结算金额。"),
+                ("下班与加班记录", "下班、继续加班、结束加班、加班时长、加班记录", "到达计划下班时间后，悬浮窗提供“下班”和“继续加班”两个操作。点击“下班”结束当天工作；点击“继续加班”才开始累计加班时间，结束时点击“结束加班”保存本次实际起止时间。记录保存在本机，供后续周、月、年统计和报表导出使用；当前版本尚未提供报表导出界面。", "没有加班时点击“下班”；仍在工作时点击“继续加班”，结束工作后点击“结束加班”。"),
+                ("薪资计算口径与限制", "日薪、时薪、秒薪、今日收入、本周、本月、加班", "日薪按月薪除以当月计薪工作日计算；时薪按日薪除以每日有效工时计算；今日收入按今日有效工作进度估算。本周和本月累计包含已完成工作日收入及今天的实时进度，启用午休时该时段不计薪；关闭午休时按完整上下班时段计算。当前只记录加班时长和起止时间，不计算加班费；请假扣薪和年终奖个税也未单独计算，不支持跨午夜班次。", "若实际工资包含加班费、绩效或请假扣款，挂件数值应视为按当前规则计算的估算值，而不是工资单结算金额。"),
                 ("WidgetKit 桌面小组件", "Widget、桌面小组件、小中大、App Group", "项目包含 WidgetKit 小、中、大尺寸组件源码，与主程序共用薪资计算逻辑，并通过 App Group 共享配置。Widget 刷新由 macOS 系统调度，不保证 100ms 实时更新。当前源码和构建脚本已提供，但完整 Xcode 工程构建、签名、嵌入和系统安装验证仍需完整 Xcode 与开发者签名环境。", "需要使用系统桌面小组件时，先按 README 的 WidgetKit 构建说明完成签名和安装；普通悬浮挂件不依赖 WidgetKit。"),
                 ("设置迁移与数据保存", "自动保存、本地配置、旧版本、迁移、备份", "设置更改会自动保存到本地配置，无需手动保存。应用升级时会为新增配置字段补齐默认值，并迁移旧版本家庭成员的工作日和工作时间配置。重新安装或迁移设备前，建议先备份应用本地配置数据。", "升级后若发现人员工作时间不符合预期，检查本人和各家庭成员的独立设置。")
             ]

@@ -239,6 +239,10 @@ final class SalaryClockAppDelegate: NSObject, NSApplicationDelegate, UNUserNotif
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
+        // Reconcile the daily notification after sleep/wake or returning from
+        // Notification settings; the system keeps pending calendar triggers
+        // while the app is suspended, and this verifies the configured request.
+        SalaryClockModel.shared.configureAfterWorkReminder()
         guard !hasCreatedInitialWidget else { return }
         DispatchQueue.main.async { [weak self] in self?.showWidgetOnLaunch() }
     }

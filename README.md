@@ -15,9 +15,9 @@
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License">
 </p>
 
-**当前版本：1.2.0**
+**当前版本：1.2.1**
 
-版本变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+版本变更记录见 [CHANGELOG.md](CHANGELOG.md)。关于页面按大版本分组、小版本逐项选择；每条更新内容独立编号展示，默认定位当前安装版本。
 
 
 一款基于 SwiftUI、AppKit 与 WidgetKit 的 macOS 原生薪资时钟。它根据月薪、工作日历、上下班时间和午休时段，持续估算今日、本周和本月收入；也可以把家庭成员加入收入总览，在桌面组件中查看每个人的今日收入与工作进度。当前版本仅支持 macOS。
@@ -57,9 +57,9 @@
 - 数字变化支持数字滚动、平滑淡变两种动画；金额、累计收入、税费和百分比等数字统一使用千位分隔符
 - 家庭成员薪资：可添加多位成员，分别设置姓名和月薪，在挂件中并列展示今日实时收入；共享当前工作日历与工时规则
 - 愿望清单：记录目标金额、已存金额和完成进度
-- 下班状态：到达个人设置的下班时间后，今日已赚金额和 100% 工作进度继续保留，同时以红色显示累计加班时长；悬浮窗与所有 Widget 尺寸保持一致，家庭成员分别按各自下班时间切换；休息日和法定节假日不累计加班
+- 下班与加班：到达计划下班时间后，悬浮窗提供「下班」和「继续加班」两个操作；只有明确选择继续加班才开始计时，结束加班后保存实际起止时间，为后续按周/月/年汇总和导出报表提供数据基础。
 - 关于与版本信息：设置中新增「关于」页面，展示应用名称、版本号和构建版本，版本信息直接读取应用构建配置
-- 下班提醒：支持每日自定义时间，通过 macOS 系统通知提醒
+- 下班提醒：支持每日自定义时间，通过 macOS 系统通知提醒；配置时校验系统是否保留定时请求，并在应用重新激活时重新核对
 - 隐私模式：一键遮罩挂件中的今日、本周、本月收入及日薪 / 时薪
 - 内容自适应窗口高度，窗口尺寸以挂件内容为准
 - 金额 / 进度百分比两种主显示模式：进度模式以百分比为主、今日金额为辅；金额模式以收入为主、进度为辅
@@ -98,8 +98,8 @@
 - 与悬浮挂件共用薪资计算逻辑和设置数据
 - 通过 App Group 读取主程序配置；设置修改后主动请求刷新 Widget
 - 遵循主题、金额/进度模式、隐私模式、语言及统计项显示开关；所有尺寸均不显示状态提示语，主金额下方固定显示今日进度百分比，并展示配置的上班/下班时间
-- Widget 内容使用 SwiftUI `TimelineView` 请求每 5 秒重新计算并重绘时间相关数据；WidgetKit Provider 同时提供未来一小时的分钟级时间线，供系统调度后续更新
-- 5 秒是尽力更新目标，不是系统保证；macOS 可能因 WidgetKit 的刷新策略、设备状态或资源管理而降低频率或延迟绘制
+- WidgetKit Provider 预先提供未来一小时的分钟级快照，由系统按时间线调度更新；不在组件视图内部叠加高频刷新，避免重复计算和内容归档造成渲染负担
+- WidgetKit 的刷新时机由 macOS 管理，可能因系统资源和调度策略延迟；组件不承诺秒级实时刷新
 
 ## 计算口径
 
@@ -110,7 +110,7 @@
 - 本周 / 本月累计 = 已完成工作日收入 + 今天实时进度对应收入
 - 午休不计薪
 - 当前按固定上下班时间计算，不支持跨午夜班次
-- 未单独计算加班费、请假扣薪和年终奖个税
+- 当前只记录加班时长和起止时间，不计算加班费；周/月/年报表导出尚未实现
 
 ## 应用内操作手册
 
@@ -126,7 +126,7 @@
 - `Sources/SalaryClock/SalaryClockModel.swift`：状态更新和本地持久化
 - `Sources/SalaryClock/FloatingWidgetView.swift`：桌面悬浮窗口
 - `Sources/SalaryClock/SettingsView.swift`：设置界面
-- `WidgetExtension/SalaryClockWidget.swift`：WidgetKit 扩展源码及 5 秒级尽力重绘逻辑
+- `WidgetExtension/SalaryClockWidget.swift`：WidgetKit 扩展源码，使用 WidgetKit 分钟级时间线调度更新
 - `docs/images/`：Widget 界面布局示意图及 1.2.0 设置界面实机截图（薪资信息已遮挡）
 - `docs/操作手册.md`：独立用户操作手册
 - `AGENTS.md`：强制开发规范，约束悬浮窗/Widget 功能覆盖、键盘直接输入及文档同步
@@ -165,7 +165,7 @@ WidgetKit 扩展已纳入 Xcode 工程。主程序和 Extension 使用 macOS 团
 
 原悬浮应用的 Bundle ID 为 `com.jyd.salaryclock`。为适配当前 Apple Personal Team 自动签名，Xcode 版本使用 `com.jyd.salaryclock.desktop`，Widget Extension 使用 `com.jyd.salaryclock.desktop.widget`。启动时会从旧应用的偏好设置域迁移薪资设置、引导状态、通知图标版本和悬浮位置；旧数据不会被清理。
 
-Widget 读取主程序保存的设置；设置变化时主程序会调用 `WidgetCenter.shared.reloadTimelines` 请求刷新。SwiftUI `TimelineView(.periodic(from:by: 5))` 会以 5 秒为目标重新计算收入快照并重绘；Provider 另提供未来一小时的分钟级时间线，作为 WidgetKit 后续调度的备用更新点。两者都受系统调度约束，5 秒并非硬性实时保证。主程序内的悬浮组件仍可保持更高频刷新。
+Widget 读取主程序保存的设置；设置变化时主程序会调用 `WidgetCenter.shared.reloadTimelines` 请求刷新。WidgetKit Provider 预先提供未来一小时的分钟级快照，由系统按时间线调度更新；组件视图不再嵌套高频 `TimelineView`，避免重复计算和内容归档造成渲染负担。刷新时机由 macOS 管理，可能因系统资源和调度策略延迟；主程序内的悬浮组件仍可保持更高频刷新。
 
 组件外观使用 WidgetKit 的 `containerBackground` 作为唯一背景，并通过 `ignoresSafeArea` 将主题背景延伸至组件完整边界；根视图统一占满 WidgetKit 分配的尺寸，关闭系统默认内容边距，避免系统默认灰底从内容四周露出。内部内容保留适度留白，小、中、大、超大四种尺寸采用独立布局；超大尺寸为家庭仪表盘：上方/左侧展示本人的收入、进度、工作时长、上下班时间和统计数据，下方/右侧展示本人及全部家庭成员的详细收入卡片与家庭收入合计；根据组件可用宽高自动切换纵向或横向布局；小、中、大尺寸均移除“正在为你赚钱”等状态文案，金额下方显示今日进度百分比，并在下方展示设置中的上班与下班时间。Xcode 构建会把 `Resources/AppIcon.icns` 和 `Localization/*.lproj` 一并打入应用包。
 
@@ -205,3 +205,6 @@ CODE_SIGNING_ALLOWED=NO ./scripts/build-xcode.sh
 ## 开源与贡献
 
 本项目使用 MIT License。欢迎提交 Issue 和 Pull Request。提交代码前建议运行计算逻辑检查和 Xcode Release 构建，并确保 README、独立操作手册、应用内操作手册和 CHANGELOG 同步更新；同时按 `AGENTS.md` 检查悬浮窗/Widget 功能覆盖和键盘直接输入。
+### 设置页与更新日志约定
+
+设置页面不直接展示解释性小字、脚注或卡片副标题；计算口径、开关影响和使用限制统一放在对应的「？」帮助说明中。关于页面的更新日志按大版本分组、小版本逐项选择，默认显示当前安装版本，各版本内容使用简单编号列表。

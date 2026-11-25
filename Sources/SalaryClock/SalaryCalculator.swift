@@ -411,9 +411,9 @@ enum SalaryCalculator {
         let isLunch = validLunch && nowSeconds >= lunchStart && nowSeconds < lunchEnd
         let isWorking = dayStatus.isWorkday && nowSeconds >= start && nowSeconds < end && !isLunch
         let remaining = dayStatus.isWorkday ? max(0, total - elapsed) : 0
-        // 加班从个人排班下班时刻开始计算；仅工作日生效，休息日/法定假日不自动计为加班。
-        let overtime = dayStatus.isWorkday ? max(0, nowSeconds - end) : 0
-        let isOvertime = dayStatus.isWorkday && nowSeconds >= end
+        // 加班由用户在悬浮窗明确开始；到达计划下班时间不会自动无限计时。
+        let overtime: TimeInterval = 0
+        let isOvertime = false
 
         return SalarySnapshot(
             earned: earned,

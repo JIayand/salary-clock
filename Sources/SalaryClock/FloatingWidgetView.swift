@@ -204,6 +204,17 @@ struct FloatingWidgetView: View {
                 }
                 if snapshot.isOvertime {
                     overtimeStatusLine(snapshot)
+                    Button("结束加班") { model.endOvertime() }
+                        .buttonStyle(.bordered).controlSize(.small)
+                } else if model.canChooseAfterWork {
+                    HStack(spacing: 8) {
+                        Button("下班") { model.finishWorkday() }
+                            .buttonStyle(.bordered).controlSize(.small)
+                        Button("继续加班") { model.startOvertime() }
+                            .buttonStyle(.borderedProminent).controlSize(.small)
+                    }
+                } else if snapshot.isWorkday && model.workdayClosedDateKey == ChinaWorkCalendar.dateKey(model.now, calendar: .current) {
+                    Text("今日已下班").font(.system(size: 10, weight: .medium)).foregroundStyle(foreground.opacity(0.55))
                 }
             }
 

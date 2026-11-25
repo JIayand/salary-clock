@@ -145,3 +145,11 @@ enum WorkBreakCalculator {
     }
 
 }
+
+struct OvertimeSession: Codable, Identifiable, Equatable {
+    var id: UUID
+    var startTime: Date
+    var endTime: Date
+
+    var duration: TimeInterval { max(0, endTime.timeIntervalSince(startTime)) }
+}

@@ -30,6 +30,10 @@ final class SalaryClockModel: ObservableObject {
     @Published var reminderStatus = "尚未配置"
     @Published private(set) var breakRecords: [WorkBreakRecord] = []
     @Published private(set) var activeBreak: WorkBreakRecord?
+    @Published private(set) var overtimeStartedAt: Date?
+    @Published private(set) var overtimeSessions: [OvertimeSession] = []
+    @Published private(set) var workdayClosedDateKey: Int?
+    private var reminderConfigurationID = UUID()
     private var timer: Timer?
 
     private let storageKey = "salary-clock.settings.v1"
@@ -37,6 +41,9 @@ final class SalaryClockModel: ObservableObject {
     private let legacyBundleID = "com.jyd.salaryclock"
     private let breakRecordsKey = "salary-clock.work-break-records.v1"
     private let activeBreakKey = "salary-clock.active-work-break.v1"
+    private let overtimeStartedAtKey = "salary-clock.overtime-started-at.v1"
+    private let overtimeSessionsKey = "salary-clock.overtime-sessions.v1"
+    private let workdayClosedDateKeyName = "salary-clock.workday-closed-date.v1"
 
     init() {
         let sharedDefaults = UserDefaults(suiteName: appGroupID)
@@ -62,12 +69,15 @@ final class SalaryClockModel: ObservableObject {
             save()
         }
         loadBreakRecords(sharedDefaults: sharedDefaults)
+        loadOvertimeState(sharedDefaults: sharedDefaults)
         closeBreakAtDayBoundaryIfNeeded()
+        closeOvertimeAtDayBoundaryIfNeeded()
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
                 self.now = Date()
                 self.closeBreakAtDayBoundaryIfNeeded()
+                self.closeOvertimeAtDayBoundaryIfNeeded()
             }
         }
         configureAfterWorkReminder()
@@ -76,7 +86,83 @@ final class SalaryClockModel: ObservableObject {
     }
 
     var snapshot: SalarySnapshot {
-        SalaryCalculator.snapshot(settings: settings, now: now)
+        var value = SalaryCalculator.snapshot(settings: settings, now: now)
+        let overtime = overtimeStartedAt.map { max(0, now.timeIntervalSince($0)) } ?? 0
+        value = SalarySnapshot(
+            earned: value.earned, progress: value.progress,
+            todayWorkSeconds: value.todayWorkSeconds, elapsedWorkSeconds: value.elapsedWorkSeconds,
+            monthlyWorkdays: value.monthlyWorkdays, isWorkday: value.isWorkday,
+            isWorkingNow: value.isWorkingNow && overtimeStartedAt == nil,
+            remainingSeconds: value.remainingSeconds, overtimeSeconds: overtime,
+            isOvertime: overtimeStartedAt != nil, isPublicHoliday: value.isPublicHoliday,
+            isMakeupWorkday: value.isMakeupWorkday, dailyRate: value.dailyRate,
+            hourlyRate: value.hourlyRate, weekEarned: value.weekEarned,
+            monthEarned: value.monthEarned, tax: value.tax, netMonthlySalary: value.netMonthlySalary,
+            secondRate: value.secondRate, annualSalary: value.annualSalary
+        )
+        return value
+    }
+
+    var canChooseAfterWork: Bool {
+        guard snapshot.isWorkday, overtimeStartedAt == nil else { return false }
+        let calendar = Calendar.current
+        let end = calendar.date(bySettingHour: settings.endHour, minute: settings.endMinute, second: 0, of: now) ?? now
+        let key = ChinaWorkCalendar.dateKey(now, calendar: calendar)
+        return now >= end && workdayClosedDateKey != key
+    }
+
+    func finishWorkday() {
+        guard canChooseAfterWork else { return }
+        workdayClosedDateKey = ChinaWorkCalendar.dateKey(now, calendar: .current)
+        persistOvertimeState()
+    }
+
+    func startOvertime() {
+        guard canChooseAfterWork else { return }
+        overtimeStartedAt = now
+        persistOvertimeState()
+        WidgetCenter.shared.reloadTimelines(ofKind: "SalaryClockWidget")
+    }
+
+    func endOvertime() {
+        finishOvertime(at: now)
+    }
+
+    private func finishOvertime(at date: Date) {
+        guard let startedAt = overtimeStartedAt else { return }
+        let endedAt = max(startedAt, date)
+        overtimeSessions.insert(OvertimeSession(id: UUID(), startTime: startedAt, endTime: endedAt), at: 0)
+        if overtimeSessions.count > 2000 { overtimeSessions = Array(overtimeSessions.prefix(2000)) }
+        overtimeStartedAt = nil
+        workdayClosedDateKey = ChinaWorkCalendar.dateKey(endedAt, calendar: .current)
+        persistOvertimeState()
+        WidgetCenter.shared.reloadTimelines(ofKind: "SalaryClockWidget")
+    }
+
+    private func closeOvertimeAtDayBoundaryIfNeeded() {
+        guard let startedAt = overtimeStartedAt,
+              !Calendar.current.isDate(startedAt, inSameDayAs: now),
+              let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: startedAt)) else { return }
+        finishOvertime(at: nextDay)
+    }
+
+    private func loadOvertimeState(sharedDefaults: UserDefaults?) {
+        let defaults = sharedDefaults ?? .standard
+        overtimeStartedAt = defaults.object(forKey: overtimeStartedAtKey) as? Date
+        workdayClosedDateKey = defaults.object(forKey: workdayClosedDateKeyName) as? Int
+        if let data = defaults.data(forKey: overtimeSessionsKey),
+           let sessions = try? JSONDecoder().decode([OvertimeSession].self, from: data) {
+            overtimeSessions = sessions.sorted { $0.startTime > $1.startTime }
+        }
+    }
+
+    private func persistOvertimeState() {
+        let defaults = UserDefaults(suiteName: appGroupID) ?? .standard
+        if let overtimeStartedAt { defaults.set(overtimeStartedAt, forKey: overtimeStartedAtKey) }
+        else { defaults.removeObject(forKey: overtimeStartedAtKey) }
+        if let workdayClosedDateKey { defaults.set(workdayClosedDateKey, forKey: workdayClosedDateKeyName) }
+        else { defaults.removeObject(forKey: workdayClosedDateKeyName) }
+        if let data = try? JSONEncoder().encode(overtimeSessions) { defaults.set(data, forKey: overtimeSessionsKey) }
     }
 
     func snapshot(for member: FamilySalaryMember) -> SalarySnapshot {
@@ -279,6 +365,8 @@ final class SalaryClockModel: ObservableObject {
 
     func configureAfterWorkReminder() {
         let center = UNUserNotificationCenter.current()
+        let configurationID = UUID()
+        reminderConfigurationID = configurationID
         center.removePendingNotificationRequests(withIdentifiers: ["salary-clock-after-work"])
         guard settings.afterWorkReminderEnabled else {
             reminderStatus = AppLocalization.string("提醒已关闭", language: settings.language)
@@ -287,24 +375,36 @@ final class SalaryClockModel: ObservableObject {
 
         let reminderHour = min(23, max(0, settings.afterWorkReminderHour))
         let reminderMinute = min(59, max(0, settings.afterWorkReminderMinute))
-        reminderStatus = AppLocalization.string("正在配置提醒…", language: settings.language)
+        let language = settings.language
+        reminderStatus = AppLocalization.string("正在配置提醒…", language: language)
 
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 guard try await requestNotificationAuthorization() else {
-                    reminderStatus = AppLocalization.string("通知权限未开启，请在 macOS 系统设置中允许", language: settings.language)
+                    guard reminderConfigurationID == configurationID else { return }
+                    reminderStatus = AppLocalization.string("通知权限未开启，请在 macOS 系统设置中允许", language: language)
                     return
                 }
+                // Settings changes can start multiple authorization tasks. Only the
+                // latest configuration is allowed to install a pending request.
+                guard reminderConfigurationID == configurationID,
+                      settings.afterWorkReminderEnabled,
+                      settings.afterWorkReminderHour == reminderHour,
+                      settings.afterWorkReminderMinute == reminderMinute else { return }
 
                 let content = UNMutableNotificationContent()
-                content.title = AppLocalization.string("下班时间到了", language: settings.language)
-                content.body = AppLocalization.string("今天的工作已经结束，记得休息。", language: settings.language)
+                content.title = AppLocalization.string("下班时间到了", language: language)
+                content.body = AppLocalization.string("今天的工作已经结束，记得休息。", language: language)
                 content.sound = .default
+                content.threadIdentifier = "salary-clock-reminders"
 
                 var components = DateComponents()
+                components.calendar = Calendar(identifier: .gregorian)
+                components.timeZone = .autoupdatingCurrent
                 components.hour = reminderHour
                 components.minute = reminderMinute
+                components.second = 0
                 let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
                 let request = UNNotificationRequest(
                     identifier: "salary-clock-after-work",
@@ -312,9 +412,19 @@ final class SalaryClockModel: ObservableObject {
                     trigger: trigger
                 )
                 try await center.add(request)
-                reminderStatus = String(format: AppLocalization.string("已设置每天 %02d:%02d 提醒", language: settings.language), reminderHour, reminderMinute)
+                guard reminderConfigurationID == configurationID else {
+                    center.removePendingNotificationRequests(withIdentifiers: ["salary-clock-after-work"])
+                    return
+                }
+                let pending = await center.pendingNotificationRequests()
+                guard pending.contains(where: { $0.identifier == "salary-clock-after-work" }) else {
+                    reminderStatus = AppLocalization.string("提醒配置失败：系统未保留定时任务", language: language)
+                    return
+                }
+                reminderStatus = String(format: AppLocalization.string("已设置每天 %02d:%02d 提醒", language: language), reminderHour, reminderMinute)
             } catch {
-                reminderStatus = AppLocalization.string("提醒配置失败：%@", language: settings.language).replacingOccurrences(of: "%@", with: error.localizedDescription)
+                guard reminderConfigurationID == configurationID else { return }
+                reminderStatus = AppLocalization.string("提醒配置失败：%@", language: language).replacingOccurrences(of: "%@", with: error.localizedDescription)
             }
         }
     }

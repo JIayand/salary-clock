@@ -46,12 +46,12 @@ struct CalculatorChecks {
         precondition(abs(finish.progress - 1.0) < 0.0001, "下班时进度应为 100%")
         let justAfterFinish = SalaryCalculator.snapshot(settings: settings, now: date(2026, 11, 24, 18, 0, 5), calendar: calendar)
         let oneHourOvertime = SalaryCalculator.snapshot(settings: settings, now: date(2026, 11, 24, 19, 0), calendar: calendar)
-        precondition(finish.isOvertime && finish.overtimeSeconds == 0, "到达下班时刻应立即切换为加班状态并从零开始计时")
-        precondition(justAfterFinish.isOvertime && abs(justAfterFinish.overtimeSeconds - 5) < 0.01, "下班后应从零开始累计加班秒数")
-        precondition(oneHourOvertime.isOvertime && abs(oneHourOvertime.overtimeSeconds - 3600) < 0.01, "加班一小时应累计 3600 秒")
+        precondition(!finish.isOvertime && finish.overtimeSeconds == 0, "到达下班时刻不应自动进入加班状态")
+        precondition(!justAfterFinish.isOvertime && justAfterFinish.overtimeSeconds == 0, "用户未选择继续加班时，不应自动累计加班时间")
+        precondition(!oneHourOvertime.isOvertime && oneHourOvertime.overtimeSeconds == 0, "计划下班后不应默认持续计时")
         precondition(oneHourOvertime.progress == 1 && abs(oneHourOvertime.earned - finish.earned) < 0.001, "加班不应继续增加正常工时进度或日薪金额")
         let sundayAfterHours = SalaryCalculator.snapshot(settings: settings, now: date(2026, 11, 29, 22), calendar: calendar)
-        precondition(!sundayAfterHours.isOvertime && sundayAfterHours.overtimeSeconds == 0, "非工作日不应累计加班")
+        precondition(!sundayAfterHours.isOvertime && sundayAfterHours.overtimeSeconds == 0, "非工作日不应自动累计加班")
         precondition(abs(finish.earned - 22000.0 / Double(finish.monthlyWorkdays)) < 0.01, "日薪金额计算错误")
         precondition(!sunday.isWorkday && sunday.earned == 0, "普通周日不应累计收入")
         precondition(abs(morning.dailyRate - 22000.0 / Double(morning.monthlyWorkdays)) < 0.01, "日薪字段计算错误")
@@ -122,6 +122,12 @@ struct CalculatorChecks {
         let breakRecord = WorkBreakRecord(id: UUID(), type: .restroom, startTime: breakStart,
                                           endTime: date(2026, 11, 24, 10, 25), deductFromWork: true)
         let savedBreak = try! JSONDecoder().decode(WorkBreakRecord.self, from: JSONEncoder().encode(breakRecord))
+        let overtimeSession = OvertimeSession(id: UUID(), startTime: date(2026, 11, 24, 18, 15), endTime: date(2026, 11, 24, 20, 0))
+        let restoredOvertime = try! JSONDecoder().decode(OvertimeSession.self, from: JSONEncoder().encode(overtimeSession))
+        precondition(restoredOvertime.startTime == overtimeSession.startTime
+                     && restoredOvertime.endTime == overtimeSession.endTime
+                     && abs(restoredOvertime.duration - 6300) < 0.01,
+                     "加班起止时间记录持久化失败")
         precondition(savedBreak.type == .restroom && savedBreak.startTime == breakRecord.startTime
                      && savedBreak.endTime == breakRecord.endTime && savedBreak.deductFromWork,
                      "休息记录编码 / 解码失败")

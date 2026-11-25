@@ -36,12 +36,8 @@ struct EffectiveWorkSettingsSection: View {
         VStack(alignment: .leading, spacing: 14) {
             SettingsCard(title: "摸鱼统计开关", subtitle: "", icon: "timer") {
                 HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("启用摸鱼统计")
-                        Text("开启后可记录休息，并统计实际工作时间")
-                            .font(.system(size: 10)).foregroundStyle(.secondary)
-                    }
-                    HelpPopover(title: "摸鱼统计", message: "仅记录你主动开始和结束的休息，不会监控键盘、鼠标或屏幕。关闭后停止统计；已有记录会保留。")
+                    Text("启用摸鱼统计")
+                    HelpPopover(title: "摸鱼统计", message: "开启后可记录休息并统计实际工作时间。仅记录你主动开始和结束的休息，不会监控键盘、鼠标或屏幕。关闭后停止统计；已有记录会保留。")
                     Spacer()
                     Toggle("启用摸鱼统计", isOn: $model.settings.effectiveWorkTrackingEnabled)
                         .labelsHidden().toggleStyle(.switch)
@@ -54,14 +50,12 @@ struct EffectiveWorkSettingsSection: View {
                         statisticTile(
                             title: "实际工作",
                             value: formatDuration(model.todayEffectiveWorkSeconds),
-                            detail: "已扣除符合规则的摸鱼时间",
                             symbol: "briefcase.fill",
                             tint: .accentColor
                         )
                         statisticTile(
                             title: "摸鱼时长",
                             value: formatDuration(model.todayBreakSeconds),
-                            detail: "实际记录与估算合并",
                             symbol: "cup.and.saucer.fill",
                             tint: .orange
                         )
@@ -71,11 +65,8 @@ struct EffectiveWorkSettingsSection: View {
                         metricDetail(title: "实际记录", value: formatDuration(model.todayActualBreakSeconds), symbol: "record.circle")
                         Spacer(minLength: 4)
                         metricDetail(title: "系统估算", value: formatDuration(model.todayEstimatedBreakSeconds), symbol: "wand.and.stars")
+                        HelpPopover(title: "统计口径", message: "实际记录与每日估算按每种摸鱼类型分别比较，取较大值，不重复相加。只有开启扣除的类型才会计入实际工作时间。")
                     }
-                    Text("计算方式：按每种摸鱼类型分别比较实际记录和每日估算，取较大值，不重复相加。仅开启扣除的类型会计入。")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                     Divider()
                     HStack(spacing: 12) {
                         metricSummary(title: "本周摸鱼", value: formatDuration(weekBreakSeconds), symbol: "calendar")
@@ -95,19 +86,16 @@ struct EffectiveWorkSettingsSection: View {
 
             if model.settings.effectiveWorkTrackingEnabled {
                 SettingsCard(title: "摸鱼扣除规则", subtitle: "", icon: "slider.horizontal.3") {
-                    Text("开启的类型会从实际工作时间中扣除；关闭只停止扣除，不会删除记录。")
-                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                    HStack {
+                        Text("摸鱼类型")
+                        HelpPopover(title: "摸鱼扣除规则", message: "开启的类型会从实际工作时间中扣除；关闭只停止扣除，不会删除记录。摸鱼记录始终保留。午休已单独计算时，吃饭默认不重复扣除。")
+                    }
                     LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], alignment: .leading, spacing: 9) {
                         deductionToggle("上厕所", icon: "toilet", isOn: $model.settings.deductRestroomBreaks)
                         deductionToggle("玩手机", icon: "iphone", isOn: $model.settings.deductPhoneBreaks)
                         deductionToggle("喝水 / 休息", icon: "cup.and.saucer", isOn: $model.settings.deductShortBreaks)
                         deductionToggle("吃饭", icon: "fork.knife", isOn: $model.settings.deductMealBreaks)
                         deductionToggle("其他", icon: "ellipsis.circle", isOn: $model.settings.deductOtherBreaks)
-                    }
-                    HStack(spacing: 5) {
-                        HelpPopover(title: "摸鱼扣除规则", message: "摸鱼记录始终保留。只有开启对应类型的扣除开关，该类型才会从实际工作时间中扣除。启用午休时，午休已从计划工作时间中排除，吃饭默认不重复扣除；未启用午休时，可按实际情况开启吃饭扣除。")
-                        Text("午休已单独计算，避免重复扣除")
-                            .font(.system(size: 10)).foregroundStyle(.secondary)
                     }
                 }
 
@@ -125,18 +113,12 @@ struct EffectiveWorkSettingsSection: View {
                         Text("\(estimatedDailyMinutes) 分钟")
                             .font(.system(size: 12, weight: .semibold, design: .rounded).monospacedDigit())
                     }
-                    HStack(spacing: 5) {
-                        HelpPopover(title: "每日摸鱼估算", message: "实际记录与每日估算按类型分别取较大值，不会重复相加。只有对应类型开启工时扣除时，估算才会影响有效工时；设置为 0 分钟即可关闭该类型估算。估算仅用于工作日，并随计划工作时间逐步累计；午休和下班时间不会计入估算扣除。")
-                        Text("估算与实际记录的计算方式")
-                            .font(.system(size: 10)).foregroundStyle(.secondary)
-                    }
+                    HelpPopover(title: "每日摸鱼估算", message: "实际记录与每日估算按类型分别取较大值，不会重复相加。只有对应类型开启工时扣除时，估算才会影响有效工时；设置为 0 分钟即可关闭该类型估算。估算仅用于工作日，并随计划工作时间逐步累计；午休和下班时间不会计入估算扣除。")
                 }
 
                 SettingsCard(title: "摸鱼记录", subtitle: "", icon: "list.bullet.rectangle") {
                     HStack {
-                        Text("手动补录一段休息时间")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
+                        Text("摸鱼记录")
                         Spacer()
                         Button {
                             showingManualEntry = true
@@ -225,7 +207,7 @@ struct EffectiveWorkSettingsSection: View {
         }
     }
 
-    private func statisticTile(title: String, value: String, detail: String, symbol: String, tint: Color) -> some View {
+    private func statisticTile(title: String, value: String, symbol: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(title, systemImage: symbol)
                 .font(.system(size: 11, weight: .medium))
@@ -233,10 +215,6 @@ struct EffectiveWorkSettingsSection: View {
             Text(value)
                 .font(.system(size: 20, weight: .semibold, design: .rounded).monospacedDigit())
                 .lineLimit(1).minimumScaleFactor(0.75)
-            Text(detail)
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(11)
