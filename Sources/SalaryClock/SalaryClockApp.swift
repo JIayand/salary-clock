@@ -142,32 +142,9 @@ final class SalaryClockPanel: NSPanel {
         WidgetWindowActions.applyWindowLevel(to: self)
     }
 
-    nonisolated static func writeDragDiagnostic(_ line: String) {
-        let url = URL(fileURLWithPath: "/tmp/salary-clock-drag.log")
-        let data = Data(line.utf8)
-        if FileManager.default.fileExists(atPath: url.path),
-           let handle = try? FileHandle(forWritingTo: url) {
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: data)
-            try? handle.close()
-        } else {
-            try? data.write(to: url)
-        }
-    }
-
     override func sendEvent(_ event: NSEvent) {
         if event.type == .leftMouseDown {
             isPointerInteractionActive = true
-            let point = event.locationInWindow
-            let hit = contentView?.hitTest(point)
-            let chain = sequence(first: hit, next: { $0?.superview })
-                .compactMap { view in view.map { String(describing: type(of: $0)) } }
-                .joined(separator: " <- ")
-            let line = "DOWN point=\(point) hit=\(chain) locked=\(SalaryClockModel.shared.settings.windowLocked) movable=\(isMovable) background=\(isMovableByWindowBackground)\n"
-            Self.writeDragDiagnostic(line)
-        }
-        if event.type == .leftMouseDragged {
-            Self.writeDragDiagnostic("DRAG frame=\(frame)\n")
         }
         super.sendEvent(event)
         if event.type == .leftMouseUp {
@@ -197,7 +174,6 @@ final class SalaryClockAppDelegate: NSObject, NSApplicationDelegate, UNUserNotif
     private var statusItem: NSStatusItem?
     private var retainedWidgetWindow: NSPanel?
     private var hasCreatedInitialWidget = false
-    private var dragEventMonitor: Any?
 
     func applicationWillTerminate(_ notification: Notification) {
         if let window = WidgetWindowActions.widgetWindow {
@@ -206,7 +182,6 @@ final class SalaryClockAppDelegate: NSObject, NSApplicationDelegate, UNUserNotif
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        installDragEventMonitor()
         // macOS 默认不会在应用处于前台时展示通知；显式声明前台展示方式。
         let notificationCenter = UNUserNotificationCenter.current()
         notificationCenter.delegate = self
@@ -266,22 +241,6 @@ final class SalaryClockAppDelegate: NSObject, NSApplicationDelegate, UNUserNotif
     func applicationDidBecomeActive(_ notification: Notification) {
         guard !hasCreatedInitialWidget else { return }
         DispatchQueue.main.async { [weak self] in self?.showWidgetOnLaunch() }
-    }
-
-    private func installDragEventMonitor() {
-        guard dragEventMonitor == nil else { return }
-        dragEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { event in
-            let windowNumber = event.windowNumber
-            let typeName: String
-            switch event.type {
-            case .leftMouseDown: typeName = "APP_DOWN"
-            case .leftMouseDragged: typeName = "APP_DRAG"
-            case .leftMouseUp: typeName = "APP_UP"
-            default: typeName = "APP_OTHER"
-            }
-            SalaryClockPanel.writeDragDiagnostic("\(typeName) window=\(windowNumber) point=\(event.locationInWindow)\n")
-            return event
-        }
     }
 
     @MainActor

@@ -224,3 +224,69 @@
 "版本号" = "Version";
 "构建版本" = "Build";
 "版本信息从应用自身的构建配置读取。" = "Version information is read from the app build configuration.";
+
+/* Effective work tracking */
+"细线" = "Thin line";
+
+"分段" = "Segmented";
+
+"渐变" = "Gradient";
+
+"圆角实心" = "Rounded solid";
+
+"样式预览" = "Preview";
+
+"进度条样式" = "Progress bar style";
+
+"午休时间会从每日计薪工时中扣除" = "Lunch break is excluded from scheduled paid work time.";
+
+"启用午休" = "Enable lunch break";
+
+"每日估算" = "Daily estimate";
+
+"实际记录" = "Actual records";
+
+"今日休息（估算合并）" = "Breaks today (actual + estimate)";
+
+"每日固定休息估算" = "Daily Break Estimates";
+"为不方便逐次计时的休息设置每日预计时长" = "Set daily estimates for breaks you do not want to time individually.";
+"每日估算合计" = "Daily estimate total";
+"实际记录与每日估算按类型分别取较大值，不会重复相加。只有对应类型开启工时扣除时，估算才会影响有效工时；设置为 0 分钟即可关闭该类型估算。估算仅用于工作日，午休和下班时间不会计入有效工时扣除。" = "Actual records and daily estimates use the greater value for each category, rather than being added together. Estimates affect effective work only when deduction is enabled for that category. Set a value to 0 to disable its estimate. Estimates apply on workdays only; scheduled lunch and after-hours are excluded.";
+"折算时薪按当日预计工资 ÷（计划工作时长 − 已记录且设置为扣除的休息时长）计算；不改变原有工资发放和收入累计。" = "Adjusted hourly pay = estimated daily pay ÷ (scheduled work time − the combined actual and estimated break deduction). This does not change salary or earnings calculations.";
+
+"有效工时" = "Effective Work";
+"休息记录、有效工时与折算时薪" = "Break records, effective hours and adjusted hourly rate";
+"有效工时与摸鱼统计" = "Effective Work & Break Tracking";
+"记录主动休息时间，估算扣除休息后的有效工时和折算时薪" = "Track breaks you start manually and estimate working time and adjusted hourly pay.";
+"启用有效工时统计" = "Enable effective work tracking";
+"默认关闭。开启后，悬浮窗展开时会出现休息计时入口；此功能只记录你主动开始和结束的休息，不会监控键盘、鼠标或屏幕。" = "Off by default. When enabled, break controls appear in the expanded floating widget. Only breaks you start and end manually are recorded; no keyboard, mouse or screen monitoring.";
+"今日有效工作" = "Effective work today";
+"今日休息累计" = "Break time today";
+"本周休息累计" = "Break time this week";
+"有效工时折算时薪" = "Adjusted hourly rate";
+"折算时薪按当日预计工资 ÷（计划工作时长 − 已记录且设置为扣除的休息时长）计算；不改变原有工资发放和收入累计。" = "Adjusted hourly pay = estimated daily pay ÷ (scheduled work time − recorded breaks configured for deduction). This does not change salary or earnings calculations.";
+"休息类型与工时扣除规则" = "Break Types & Deduction Rules";
+"休息记录始终保留；勾选后，该类型的时长会从有效工时中扣除" = "Breaks are always recorded. Select a type to deduct its duration from effective work time.";
+"上厕所" = "Restroom";
+"玩手机" = "Phone";
+"喝水 / 休息" = "Short break";
+"吃饭" = "Meal";
+"其他" = "Other";
+"吃饭默认不重复扣除，因为现有工作制度已单独排除配置的午休时段。你可以按实际情况调整。" = "Meals are not deducted by default because scheduled lunch is already excluded from working hours. Adjust this if needed.";
+"今日休息记录" = "Break Records Today";
+"记录保存在本机，退出应用或重启 Mac 后仍会保留" = "Records are stored locally and remain available after restarting the app or Mac.";
+"结束休息" = "End Break";
+"开始休息" = "Start Break";
+"有效工时统计" = "Effective Work";
+"结束" = "End";
+"进行中" = "In progress";
+"已扣除" = "Deducted";
+"未扣除" = "Not deducted";
+"删除这条记录" = "Delete this record";
+"今天还没有休息记录。可在悬浮窗中点击「开始休息」记录一次。" = "No breaks recorded today. Use Start Break in the floating widget to add one.";
+
+"本月休息累计" = "Break time this month";
+
+"通用设置" = "General";
+
+"摸鱼设置" = "Break Tracking";

@@ -13,6 +13,8 @@ targets:
         excludes:
           - .backups/**
       - path: Resources
+      - path: CHANGELOG.md
+        buildPhase: resources
       - path: Localization
     dependencies:
       - target: SalaryClockWidgetExtension
@@ -28,8 +30,8 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Configuration/SalaryClock.entitlements
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Configuration/SalaryClock-Info.plist
-        MARKETING_VERSION: 1.1.0
-        CURRENT_PROJECT_VERSION: 1.1.0
+        MARKETING_VERSION: 1.2.0
+        CURRENT_PROJECT_VERSION: 1.2.0
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
         ENABLE_APP_SANDBOX: NO
 
@@ -41,10 +43,12 @@ targets:
         excludes:
           - .backups/**
       - path: Sources/SalaryClock/SalaryCalculator.swift
+      - path: Sources/SalaryClock/NumericFormatting.swift
+      - path: Sources/SalaryClock/SalaryProgressBar.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jyd.salaryclock.desktop.widget
-        MARKETING_VERSION: 1.1.0
+        MARKETING_VERSION: 1.2.0
         DEVELOPMENT_TEAM: WXFKXAFBJ8
         CODE_SIGN_STYLE: Automatic
         PRODUCT_NAME: SalaryClockWidgetExtension
@@ -56,4 +60,4 @@ targets:
         SKIP_INSTALL: YES
         ENABLE_APP_SANDBOX: YES
         APPLICATION_EXTENSION_API_ONLY: YES
-        CURRENT_PROJECT_VERSION: 1.1.0
+        CURRENT_PROJECT_VERSION: 1.2.0

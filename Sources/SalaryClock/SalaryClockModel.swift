@@ -8,7 +8,13 @@ final class SalaryClockModel: ObservableObject {
     static let shared = SalaryClockModel()
     @Published var settings: SalarySettings {
         didSet {
+            if oldValue.effectiveWorkTrackingEnabled != settings.effectiveWorkTrackingEnabled {
+                settings.effectiveWorkTrackingStartedAt = settings.effectiveWorkTrackingEnabled ? Date() : nil
+            }
             save()
+            if oldValue.effectiveWorkTrackingEnabled && !settings.effectiveWorkTrackingEnabled && activeBreak != nil {
+                endBreak()
+            }
             if oldValue.alwaysOnTop != settings.alwaysOnTop {
                 NotificationCenter.default.post(name: .salaryClockWindowLevelChanged, object: nil)
             }
@@ -22,11 +28,15 @@ final class SalaryClockModel: ObservableObject {
     }
     @Published var now = Date()
     @Published var reminderStatus = "尚未配置"
+    @Published private(set) var breakRecords: [WorkBreakRecord] = []
+    @Published private(set) var activeBreak: WorkBreakRecord?
     private var timer: Timer?
 
     private let storageKey = "salary-clock.settings.v1"
     private let appGroupID = "WXFKXAFBJ8.salaryclock"
     private let legacyBundleID = "com.jyd.salaryclock"
+    private let breakRecordsKey = "salary-clock.work-break-records.v1"
+    private let activeBreakKey = "salary-clock.active-work-break.v1"
 
     init() {
         let sharedDefaults = UserDefaults(suiteName: appGroupID)
@@ -47,8 +57,18 @@ final class SalaryClockModel: ObservableObject {
         } else {
             settings = SalarySettings()
         }
+        if settings.effectiveWorkTrackingEnabled && settings.effectiveWorkTrackingStartedAt == nil {
+            settings.effectiveWorkTrackingStartedAt = Date()
+            save()
+        }
+        loadBreakRecords(sharedDefaults: sharedDefaults)
+        closeBreakAtDayBoundaryIfNeeded()
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.now = Date() }
+            Task { @MainActor in
+                guard let self else { return }
+                self.now = Date()
+                self.closeBreakAtDayBoundaryIfNeeded()
+            }
         }
         configureAfterWorkReminder()
         // 启动时主动请求一次 WidgetKit 同步，避免组件继续显示上次运行留下的旧快照。
@@ -78,7 +98,183 @@ final class SalaryClockModel: ObservableObject {
         memberSettings.lunchStartMinute = member.lunchStartMinute
         memberSettings.lunchEndHour = member.lunchEndHour
         memberSettings.lunchEndMinute = member.lunchEndMinute
+        memberSettings.lunchBreakEnabled = member.lunchBreakEnabled
         return SalaryCalculator.snapshot(settings: memberSettings, now: now)
+    }
+
+
+    // MARK: - Effective work-time tracking
+
+    func startBreak(_ type: WorkBreakType) {
+        guard settings.effectiveWorkTrackingEnabled, activeBreak == nil else { return }
+        let record = WorkBreakRecord(
+            id: UUID(),
+            type: type,
+            startTime: Date(),
+            endTime: nil,
+            deductFromWork: shouldDeduct(type)
+        )
+        activeBreak = record
+        persistBreakState()
+    }
+
+    @discardableResult
+    func addBreak(_ type: WorkBreakType, start: Date, end: Date) -> Bool {
+        guard settings.effectiveWorkTrackingEnabled, end > start, end <= now else { return false }
+        let overlapsSaved = breakRecords.contains { record in
+            let recordEnd = record.endTime ?? now
+            return start < recordEnd && end > record.startTime
+        }
+        let overlapsActive = activeBreak.map { start < now && end > $0.startTime } ?? false
+        guard !overlapsSaved, !overlapsActive else { return false }
+        let record = WorkBreakRecord(
+            id: UUID(),
+            type: type,
+            startTime: start,
+            endTime: end,
+            deductFromWork: shouldDeduct(type)
+        )
+        breakRecords.append(record)
+        breakRecords.sort { $0.startTime > $1.startTime }
+        if breakRecords.count > 1000 { breakRecords = Array(breakRecords.prefix(1000)) }
+        persistBreakState()
+        return true
+    }
+
+    func endBreak(at date: Date = Date()) {
+        guard var record = activeBreak else { return }
+        record.endTime = max(record.startTime, date)
+        breakRecords.append(record)
+        breakRecords.sort { $0.startTime > $1.startTime }
+        if breakRecords.count > 1000 { breakRecords = Array(breakRecords.prefix(1000)) }
+        activeBreak = nil
+        persistBreakState()
+    }
+
+    func deleteBreak(_ record: WorkBreakRecord) {
+        breakRecords.removeAll { $0.id == record.id }
+        persistBreakState()
+    }
+
+    func breakSeconds(on date: Date, deductOnly: Bool = false) -> TimeInterval {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return 0 }
+        let records = breakRecords + (activeBreak.map { [$0] } ?? [])
+        let actualByType = WorkBreakType.allCases.reduce(into: [WorkBreakType: TimeInterval]()) { result, type in
+            result[type] = records.reduce(0) { subtotal, record in
+                guard record.type == type, !deductOnly || record.deductFromWork else { return subtotal }
+                let recordEnd = min(record.endTime ?? now, end)
+                let overlapStart = max(start, record.startTime)
+                let overlapEnd = min(end, recordEnd)
+                return subtotal + max(0, overlapEnd.timeIntervalSince(overlapStart))
+            }
+        }
+        let today = calendar.startOfDay(for: now)
+        let trackingStartDay = settings.effectiveWorkTrackingStartedAt.map { calendar.startOfDay(for: $0) } ?? today
+        let estimateEnabled = settings.effectiveWorkTrackingEnabled && start >= trackingStartDay && start <= today
+            && SalaryCalculator.snapshot(settings: settings, now: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: start) ?? start).isWorkday
+        return WorkBreakType.allCases.reduce(0) { total, type in
+            let actual = actualByType[type] ?? 0
+            let configuredMinutes = deductOnly
+                ? WorkBreakCalculator.estimatedMinutes(for: type, settings: settings)
+                : WorkBreakCalculator.configuredMinutes(for: type, settings: settings)
+            let estimate = estimateEnabled ? Double(configuredMinutes) * 60 : 0
+            return total + max(actual, estimate)
+        }
+    }
+
+    var todayBreakSeconds: TimeInterval { breakSeconds(on: now) }
+    var todayActualBreakSeconds: TimeInterval { actualBreakSeconds(on: now) }
+    var todayEstimatedBreakSeconds: TimeInterval {
+        guard settings.effectiveWorkTrackingEnabled,
+              let startedAt = settings.effectiveWorkTrackingStartedAt,
+              Calendar.current.startOfDay(for: now) >= Calendar.current.startOfDay(for: startedAt),
+              SalaryCalculator.snapshot(settings: settings, now: Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now).isWorkday else { return 0 }
+        return WorkBreakType.allCases.reduce(0) { $0 + Double(WorkBreakCalculator.configuredMinutes(for: $1, settings: settings)) * 60 }
+    }
+
+    func actualBreakSeconds(on date: Date) -> TimeInterval {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return 0 }
+        return (breakRecords + (activeBreak.map { [$0] } ?? [])).reduce(0) { total, record in
+            let recordEnd = min(record.endTime ?? now, end)
+            return total + max(0, min(end, recordEnd).timeIntervalSince(max(start, record.startTime)))
+        }
+    }
+
+    var todayDeductedBreakSeconds: TimeInterval { deductedWorkBreakSeconds(on: now) }
+
+    func deductedWorkBreakSeconds(on date: Date) -> TimeInterval {
+        WorkBreakCalculator.deductedWorkSeconds(
+            records: breakRecords,
+            activeRecord: activeBreak,
+            now: now,
+            on: date,
+            settings: settings
+        )
+    }
+
+    var todayEffectiveWorkSeconds: TimeInterval {
+        max(0, snapshot.elapsedWorkSeconds - todayDeductedBreakSeconds)
+    }
+    var effectiveHourlyRate: Double {
+        let denominator = max(0, snapshot.todayWorkSeconds - todayDeductedBreakSeconds)
+        return denominator > 0 ? snapshot.dailyRate * 3600 / denominator : 0
+    }
+
+    func breakCount(on date: Date) -> Int {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return 0 }
+        return (breakRecords + (activeBreak.map { [$0] } ?? [])).filter {
+            $0.startTime < end && ($0.endTime ?? now) > start
+        }.count
+    }
+
+    private func shouldDeduct(_ type: WorkBreakType) -> Bool {
+        switch type {
+        case .restroom: return settings.deductRestroomBreaks
+        case .phone: return settings.deductPhoneBreaks
+        case .shortBreak: return settings.deductShortBreaks
+        case .meal: return settings.deductMealBreaks
+        case .other: return settings.deductOtherBreaks
+        }
+    }
+
+    private func closeBreakAtDayBoundaryIfNeeded() {
+        guard let activeBreak,
+              !Calendar.current.isDate(activeBreak.startTime, inSameDayAs: now),
+              let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: activeBreak.startTime)) else {
+            return
+        }
+        // An unfinished break must not leak into the next workday indefinitely.
+        endBreak(at: nextDay)
+    }
+
+    private func loadBreakRecords(sharedDefaults: UserDefaults?) {
+        let defaults = sharedDefaults ?? UserDefaults.standard
+        if let data = defaults.data(forKey: breakRecordsKey),
+           let records = try? JSONDecoder().decode([WorkBreakRecord].self, from: data) {
+            breakRecords = records.sorted { $0.startTime > $1.startTime }
+        }
+        if let data = defaults.data(forKey: activeBreakKey),
+           let record = try? JSONDecoder().decode(WorkBreakRecord.self, from: data) {
+            activeBreak = record
+        }
+    }
+
+    private func persistBreakState() {
+        let defaults = UserDefaults(suiteName: appGroupID) ?? .standard
+        if let data = try? JSONEncoder().encode(breakRecords) {
+            defaults.set(data, forKey: breakRecordsKey)
+        }
+        if let activeBreak, let data = try? JSONEncoder().encode(activeBreak) {
+            defaults.set(data, forKey: activeBreakKey)
+        } else {
+            defaults.removeObject(forKey: activeBreakKey)
+        }
     }
 
     func configureAfterWorkReminder() {

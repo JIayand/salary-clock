@@ -12,7 +12,6 @@ struct FloatingWidgetView: View {
     @State private var expandedMemberIDs: Set<UUID> = []
     @State private var hideControlsWorkItem: DispatchWorkItem?
     @State private var resizeWorkItem: DispatchWorkItem?
-    @State private var suppressHoverUntil = Date.distantPast
     @State private var resizeAnchorFrame: NSRect?
 
     private var foreground: Color {
@@ -97,6 +96,9 @@ struct FloatingWidgetView: View {
             if !enabled { isPinnedExpanded = false }
             resizeWidgetWindow()
         }
+        .onChange(of: model.settings.effectiveWorkTrackingEnabled) { _ in
+            resizeWidgetWindow()
+        }
         .frame(minWidth: isCompactCollapsed ? 190 : 310, idealWidth: isCompactCollapsed ? 210 : 340, maxWidth: isCompactCollapsed ? 230 : 380)
         .fixedSize(horizontal: false, vertical: true)
         .environment(\.locale, model.settings.language.locale)
@@ -129,23 +131,19 @@ struct FloatingWidgetView: View {
                         .transition(.opacity)
                     }
                     if model.settings.mode == .money {
-                        Text(String(format: "%.*f%%", model.settings.percentDecimals, snapshot.progress * 100))
+                        Text(NumericFormatting.number(snapshot.progress * 100, fractionDigits: model.settings.percentDecimals) + "%")
                             .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
                             .foregroundStyle(foreground.opacity(0.72))
                     } else {
-                        Text(model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, snapshot.earned))
+                        Text(model.settings.privacyMode ? "¥ ••••" : NumericFormatting.currency(snapshot.earned, fractionDigits: model.settings.decimals))
                             .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
                             .foregroundStyle(foreground.opacity(0.65))
                     }
                 }
             }
             if model.settings.mode == .money {
-                GeometryReader { proxy in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(foreground.opacity(0.12))
-                        Capsule().fill(accent).frame(width: proxy.size.width * snapshot.progress)
-                    }
-                }.frame(height: 3)
+                SalaryProgressBar(progress: snapshot.progress, style: model.settings.progressBarStyle,
+                                  trackColor: foreground.opacity(0.12), fillColor: accent, height: 3)
             }
             if snapshot.isOvertime {
                 overtimeStatusLine(snapshot)
@@ -200,7 +198,7 @@ struct FloatingWidgetView: View {
                     .animation(numberAnimation, value: snapshot.earned)
                     .animation(numberAnimation, value: snapshot.progress)
                 if model.settings.mode == .percent {
-                    Text(model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, snapshot.earned))
+                    Text(model.settings.privacyMode ? "¥ ••••" : NumericFormatting.currency(snapshot.earned, fractionDigits: model.settings.decimals))
                         .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
                         .foregroundStyle(foreground.opacity(0.68))
                 }
@@ -212,14 +210,9 @@ struct FloatingWidgetView: View {
             if (model.settings.showProgress && model.settings.mode == .money) || model.settings.showWorkDuration {
                 VStack(spacing: 7) {
                     if model.settings.showProgress && model.settings.mode == .money {
-                        GeometryReader { proxy in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(foreground.opacity(0.12))
-                                Capsule().fill(LinearGradient(colors: [accent.opacity(0.65), accent], startPoint: .leading, endPoint: .trailing))
-                                    .frame(width: proxy.size.width * snapshot.progress)
-                            }
-                        }.frame(height: 5)
-                        Text(AppLocalization.string("今日进度", language: model.settings.language) + " " + String(format: "%.*f%%", model.settings.percentDecimals, snapshot.progress * 100))
+                        SalaryProgressBar(progress: snapshot.progress, style: model.settings.progressBarStyle,
+                                          trackColor: foreground.opacity(0.12), fillColor: accent, height: 5)
+                        Text(AppLocalization.string("今日进度", language: model.settings.language) + " " + NumericFormatting.number(snapshot.progress * 100, fractionDigits: model.settings.percentDecimals) + "%")
                             .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
                             .foregroundStyle(foreground.opacity(0.55))
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -243,6 +236,10 @@ struct FloatingWidgetView: View {
                         .foregroundStyle(foreground.opacity(0.55))
                     }
                 }
+            }
+
+            if model.settings.effectiveWorkTrackingEnabled {
+                effectiveWorkPanel
             }
 
             let stats: [(String, String, Bool)] = [
@@ -281,7 +278,7 @@ struct FloatingWidgetView: View {
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
                             Text("合计今日").font(.system(size: 8)).foregroundStyle(foreground.opacity(0.42))
-                            Text(model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, familyTotal))
+                            Text(model.settings.privacyMode ? "¥ ••••" : NumericFormatting.currency(familyTotal, fractionDigits: model.settings.decimals))
                                 .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
                                 .foregroundStyle(accent)
                         }
@@ -295,11 +292,11 @@ struct FloatingWidgetView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("本人").font(.system(size: 10, weight: .semibold)).foregroundStyle(foreground.opacity(0.9))
                             let selfSalaryLabel = AppLocalization.string("月薪", language: model.settings.language)
-                            Text("\(selfSalaryLabel) ¥\(Int(model.settings.monthlySalary).formatted())")
+                            Text("\(selfSalaryLabel) ¥\(NumericFormatting.integer(Int(model.settings.monthlySalary)))")
                                 .font(.system(size: 8, weight: .medium, design: .rounded)).foregroundStyle(foreground.opacity(0.42))
                         }
                         Spacer(minLength: 4)
-                        Text(model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, model.snapshot.earned))
+                        Text(model.settings.privacyMode ? "¥ ••••" : NumericFormatting.currency(model.snapshot.earned, fractionDigits: model.settings.decimals))
                             .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
                             .foregroundStyle(accent)
                     }
@@ -325,11 +322,11 @@ struct FloatingWidgetView: View {
                                         Text(member.name.isEmpty ? AppLocalization.string("未命名成员", language: model.settings.language) : member.name)
                                             .font(.system(size: 10, weight: .semibold)).foregroundStyle(foreground.opacity(0.9)).lineLimit(1)
                                         let salaryLabel = AppLocalization.string("月薪", language: model.settings.language)
-                                        Text("\(salaryLabel) ¥\(Int(member.monthlySalary).formatted())")
+                                        Text("\(salaryLabel) ¥\(NumericFormatting.integer(Int(member.monthlySalary)))")
                                             .font(.system(size: 8, weight: .medium, design: .rounded)).foregroundStyle(foreground.opacity(0.42))
                                     }
                                     Spacer(minLength: 4)
-                                    Text(model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, memberSnapshot.earned))
+                                    Text(model.settings.privacyMode ? "¥ ••••" : NumericFormatting.currency(memberSnapshot.earned, fractionDigits: model.settings.decimals))
                                         .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit()).foregroundStyle(accent)
                                     Image(systemName: expandedMemberIDs.contains(member.id) ? "chevron.up" : "chevron.down")
                                         .font(.system(size: 9, weight: .semibold)).foregroundStyle(foreground.opacity(0.42))
@@ -358,19 +355,78 @@ struct FloatingWidgetView: View {
         .foregroundStyle(foreground)
     }
 
+    private var effectiveWorkPanel: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 7) {
+                Image(systemName: model.activeBreak == nil ? "timer" : "pause.circle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(model.activeBreak == nil ? accent : Color.orange)
+                if let active = model.activeBreak {
+                    Text(AppLocalization.string(active.type.title, language: model.settings.language) + "中")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(duration(model.now.timeIntervalSince(active.startTime)))
+                        .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
+                        .foregroundStyle(foreground.opacity(0.7))
+                    Spacer()
+                    Button("结束休息") { model.endBreak() }
+                        .font(.system(size: 10, weight: .semibold))
+                        .buttonStyle(.borderedProminent)
+                        .tint(accent)
+                        .controlSize(.small)
+                } else {
+                    Text("有效工时统计")
+                        .font(.system(size: 10, weight: .semibold))
+                    Spacer()
+                    Menu {
+                        ForEach(WorkBreakType.allCases) { type in
+                            Button {
+                                model.startBreak(type)
+                            } label: {
+                                Label(AppLocalization.string(type.title, language: model.settings.language), systemImage: type.symbol)
+                            }
+                        }
+                    } label: {
+                        Label("开始休息", systemImage: "pause.circle")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                }
+            }
+            HStack(spacing: 0) {
+                metric("有效工作", duration(model.todayEffectiveWorkSeconds))
+                Spacer(minLength: 5)
+                metric("今日休息", duration(model.todayBreakSeconds))
+                Spacer(minLength: 5)
+                metric("折算时薪", model.settings.privacyMode ? "¥ ••••" : money(model.effectiveHourlyRate))
+            }
+        }
+        .padding(10)
+        .background(foreground.opacity(0.055), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 11).stroke(foreground.opacity(0.07), lineWidth: 1))
+    }
+
+    private func metric(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(.system(size: 8, weight: .medium)).foregroundStyle(foreground.opacity(0.5))
+            Text(value).font(.system(size: 10, weight: .semibold, design: .rounded).monospacedDigit())
+                .foregroundStyle(foreground.opacity(0.9)).lineLimit(1).minimumScaleFactor(0.7)
+        }
+    }
+
     @ViewBuilder
     private func memberDetail(_ snapshot: SalarySnapshot) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(model.settings.mode == .percent
-                 ? String(format: "%.*f%%", model.settings.percentDecimals, snapshot.progress * 100)
-                 : (model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, snapshot.earned)))
+                 ? NumericFormatting.number(snapshot.progress * 100, fractionDigits: model.settings.percentDecimals) + "%"
+                 : (model.settings.privacyMode ? "¥ ••••" : NumericFormatting.currency(snapshot.earned, fractionDigits: model.settings.decimals)))
                 .font(.system(size: 17, weight: .semibold, design: .rounded).monospacedDigit()).foregroundStyle(accent)
             if model.settings.mode == .percent {
-                Text(model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, snapshot.earned))
+                Text(model.settings.privacyMode ? "¥ ••••" : NumericFormatting.currency(snapshot.earned, fractionDigits: model.settings.decimals))
                     .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
                     .foregroundStyle(foreground.opacity(0.65))
             } else if model.settings.showProgress {
-                ProgressView(value: snapshot.progress).tint(accent)
+                SalaryProgressBar(progress: snapshot.progress, style: model.settings.progressBarStyle, trackColor: foreground.opacity(0.12), fillColor: accent, height: 4)
             }
             if model.settings.showWorkDuration {
                 HStack {
@@ -392,7 +448,7 @@ struct FloatingWidgetView: View {
                     ForEach(Array(details.enumerated()), id: \.offset) { _, item in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(LocalizedStringKey(item.0)).font(.system(size: 8)).foregroundStyle(foreground.opacity(0.5))
-                            Text(model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", item.3, item.1))
+                            Text(model.settings.privacyMode ? "¥ ••••" : NumericFormatting.currency(item.1, fractionDigits: item.3))
                                 .font(.system(size: 10, weight: .semibold, design: .rounded).monospacedDigit()).foregroundStyle(foreground.opacity(0.9)).lineLimit(1).minimumScaleFactor(0.6)
                         }
                     }
@@ -407,7 +463,6 @@ struct FloatingWidgetView: View {
         // Repeated delayed measurements plus animated NSWindow resizing caused
         // visible flicker while entering the widget and expanding family rows.
         resizeWorkItem?.cancel()
-        suppressHoverUntil = Date().addingTimeInterval(0.24)
         let workItem = DispatchWorkItem {
             guard let window = WidgetWindowActions.widgetWindow,
                   let contentView = window.contentViewController?.view else { return }
@@ -456,9 +511,9 @@ struct FloatingWidgetView: View {
 
     private func statusText(_ snapshot: SalarySnapshot) -> String {
         if snapshot.isPublicHoliday { return AppLocalization.string("法定节假日 · 今天休息", language: model.settings.language) }
-        if snapshot.isMakeupWorkday && snapshot.isWorkingNow { return AppLocalization.string("调休补班 · 今日已赚", language: model.settings.language) }
+        if snapshot.isMakeupWorkday && snapshot.isWorkingNow { return AppLocalization.string("调休补班 · 工作中", language: model.settings.language) }
         if snapshot.isMakeupWorkday { return AppLocalization.string("调休补班日", language: model.settings.language) }
-        if snapshot.isWorkingNow { return AppLocalization.string("今日已赚", language: model.settings.language) }
+        if snapshot.isWorkingNow { return AppLocalization.string("工作中", language: model.settings.language) }
         if snapshot.isWorkday { return AppLocalization.string("当前非计薪时段", language: model.settings.language) }
         return AppLocalization.string("今天不是工作日", language: model.settings.language)
     }
@@ -479,33 +534,33 @@ struct FloatingWidgetView: View {
 
     private func primaryValue(_ s: SalarySnapshot) -> String {
         if model.settings.mode == .percent {
-            return String(format: "%.*f%%", model.settings.percentDecimals, s.progress * 100)
+            return NumericFormatting.number(s.progress * 100, fractionDigits: model.settings.percentDecimals) + "%"
         }
-        return model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", model.settings.decimals, s.earned)
+        return model.settings.privacyMode ? "¥ ••••" : NumericFormatting.currency(s.earned, fractionDigits: model.settings.decimals)
     }
     private func updatePointerHover(_ hovering: Bool) {
-        // Resizing the panel rebuilds its AppKit tracking area. Ignore the
-        // synthetic exit/enter pair generated by that geometry change.
-        guard Date() >= suppressHoverUntil else { return }
-        // Ignore tracking-area exit/entry churn while AppKit owns a native drag.
+        // Tracking areas can emit synthetic exit/enter events while the panel
+        // changes size. Resolve hover from the panel's current screen frame so
+        // a discarded exit event cannot leave compact mode stuck expanded.
         // Otherwise compact mode can collapse the content under the pointer,
         // making the panel appear to disappear during the drag.
         if (WidgetWindowActions.widgetWindow as? SalaryClockPanel)?.isPointerInteractionActive == true {
             return
         }
-        guard isPointerInside != hovering else { return }
-        isPointerInside = hovering
-        if hovering {
+        let actualHover = WidgetWindowActions.widgetWindow.map { $0.frame.contains(NSEvent.mouseLocation) } ?? hovering
+        guard isPointerInside != actualHover else { return }
+        isPointerInside = actualHover
+        if actualHover {
             revealControls()
         } else {
             scheduleControlsHide()
         }
 
-        guard model.settings.compactMode, isHovering != hovering else { return }
+        guard model.settings.compactMode, isHovering != actualHover else { return }
         if let window = WidgetWindowActions.widgetWindow {
             resizeAnchorFrame = window.frame
         }
-        if hovering, let window = WidgetWindowActions.widgetWindow {
+        if actualHover, let window = WidgetWindowActions.widgetWindow {
             let screen = window.screen ?? NSScreen.screens.first
             if let visibleFrame = screen?.visibleFrame {
                 expandsUpward = window.frame.midY < visibleFrame.midY
@@ -514,7 +569,7 @@ struct FloatingWidgetView: View {
         var transaction = Transaction()
         transaction.animation = nil
         withTransaction(transaction) {
-            isHovering = hovering
+            isHovering = actualHover
         }
         resizeWidgetWindow()
     }
@@ -579,7 +634,7 @@ struct FloatingWidgetView: View {
     }
 
     private func money(_ value: Double, decimals: Int? = nil) -> String {
-        model.settings.privacyMode ? "¥ ••••" : String(format: "¥ %.*f", decimals ?? model.settings.decimals, value)
+        model.settings.privacyMode ? "¥ ••••" : NumericFormatting.currency(value, fractionDigits: decimals ?? model.settings.decimals)
     }
     private func duration(_ seconds: TimeInterval) -> String {
         let value = Int(max(0, seconds))
@@ -636,13 +691,48 @@ private struct WidgetHoverTracker: NSViewRepresentable {
 private final class HoverTrackingNSView: NSView {
     var onChange: ((Bool) -> Void)?
     private var trackingArea: NSTrackingArea?
+    private var hoverPollTimer: Timer?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        stopHoverPolling()
+        guard window != nil else { return }
+
+        // Space switches and display changes can suspend NSTrackingArea delivery
+        // without sending mouseExited. Poll the actual screen pointer so hover
+        // state is reconciled even when AppKit drops those transition events.
+        refreshPointerState()
+        let timer = Timer(timeInterval: 0.10, repeats: true) { [weak self] _ in
+            self?.refreshPointerState()
+        }
+        hoverPollTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    deinit {
+        hoverPollTimer?.invalidate()
+    }
+
+    private func stopHoverPolling() {
+        hoverPollTimer?.invalidate()
+        hoverPollTimer = nil
+    }
+
+    private func refreshPointerState() {
+        guard let window else {
+            onChange?(false)
+            return
+        }
+        let isInside = window.isVisible && window.frame.contains(NSEvent.mouseLocation)
+        onChange?(isInside)
+    }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let trackingArea { removeTrackingArea(trackingArea) }
         let area = NSTrackingArea(
             rect: bounds,
-            options: [.mouseEnteredAndExited, .activeAlways],
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
             owner: self,
             userInfo: nil
         )

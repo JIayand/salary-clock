@@ -11,12 +11,20 @@ struct CalculatorChecks {
         }
 
         var settings = SalarySettings()
+        precondition(!settings.lunchBreakEnabled, "新配置默认不启用午休")
+        let newFamilyMember = FamilySalaryMember(name: "新成员", monthlySalary: 12000)
+        precondition(!newFamilyMember.lunchBreakEnabled, "新建家庭成员默认不启用午休")
+        precondition(NumericFormatting.number(1234567.8, fractionDigits: 2) == "1,234,567.80"
+                     && NumericFormatting.integer(-1234567) == "-1,234,567"
+                     && NumericFormatting.currency(12345.6) == "¥ 12,345.60",
+                     "金额、百分比和整数的千位分隔格式化失败")
         settings.monthlySalary = 22000
         settings.workdays = [2, 3, 4, 5, 6]
         settings.startHour = 9
         settings.endHour = 18
         settings.lunchStartHour = 12
         settings.lunchEndHour = 13
+        settings.lunchBreakEnabled = true
 
         let morning = SalaryCalculator.snapshot(settings: settings, now: date(2026, 11, 24, 10), calendar: calendar)
         let lunch = SalaryCalculator.snapshot(settings: settings, now: date(2026, 11, 24, 12, 30), calendar: calendar)
@@ -28,6 +36,13 @@ struct CalculatorChecks {
         precondition(abs(lunch.progress - 3.0 / 8.0) < 0.0001, "午休期间不应累计")
         precondition(abs(afterLunch.progress - lunch.progress) < 0.0001, "午休结束瞬间金额不应跳变")
         precondition(abs(lunch.remainingSeconds - 5 * 3600) < 1, "午休期间剩余工作时间错误")
+        var noLunchSettings = settings
+        noLunchSettings.lunchBreakEnabled = false
+        let noLunchAt1230 = SalaryCalculator.snapshot(settings: noLunchSettings, now: date(2026, 11, 24, 12, 30), calendar: calendar)
+        let noLunchFinish = SalaryCalculator.snapshot(settings: noLunchSettings, now: date(2026, 11, 24, 18), calendar: calendar)
+        precondition(abs(noLunchAt1230.progress - 3.5 / 9.0) < 0.0001
+                     && abs(noLunchFinish.todayWorkSeconds - 9 * 3600) < 1,
+                     "关闭午休后应按完整上下班时段计算，不扣除午休")
         precondition(abs(finish.progress - 1.0) < 0.0001, "下班时进度应为 100%")
         let justAfterFinish = SalaryCalculator.snapshot(settings: settings, now: date(2026, 11, 24, 18, 0, 5), calendar: calendar)
         let oneHourOvertime = SalaryCalculator.snapshot(settings: settings, now: date(2026, 11, 24, 19, 0), calendar: calendar)
@@ -77,6 +92,109 @@ struct CalculatorChecks {
         precondition(migrated.familyMembers.isEmpty && !migrated.windowLocked,
                      "旧配置的家庭成员和窗口锁定默认值迁移失败")
         precondition(migrated.language == .simplifiedChinese, "旧配置应默认使用简体中文")
+        precondition(migrated.lunchBreakEnabled, "旧配置升级后应保留原有午休扣除行为")
+        precondition(!migrated.effectiveWorkTrackingEnabled, "旧版本升级后，有效工时统计必须默认关闭")
+        precondition(migrated.estimatedRestroomBreakMinutes == 30
+                     && migrated.estimatedPhoneBreakMinutes == 20
+                     && migrated.estimatedShortBreakMinutes == 10
+                     && migrated.estimatedMealBreakMinutes == 0
+                     && migrated.estimatedOtherBreakMinutes == 0,
+                     "旧版本升级后的每日休息估算默认值迁移失败")
+        precondition(migrated.deductRestroomBreaks && migrated.deductPhoneBreaks
+                     && migrated.deductShortBreaks && !migrated.deductMealBreaks && migrated.deductOtherBreaks,
+                     "休息类型的默认扣除规则迁移失败")
+        var trackingSettings = migrated
+        trackingSettings.effectiveWorkTrackingEnabled = true
+        trackingSettings.deductMealBreaks = true
+        let trackingRoundTrip = try! JSONDecoder().decode(SalarySettings.self, from: JSONEncoder().encode(trackingSettings))
+        precondition(trackingRoundTrip.effectiveWorkTrackingEnabled && trackingRoundTrip.deductMealBreaks,
+                     "有效工时功能开关和分类扣除规则持久化失败")
+        trackingSettings.effectiveWorkTrackingStartedAt = date(2026, 11, 24, 9)
+        trackingSettings.estimatedRestroomBreakMinutes = 35
+        trackingSettings.estimatedPhoneBreakMinutes = 15
+        let estimateRoundTrip = try! JSONDecoder().decode(SalarySettings.self, from: JSONEncoder().encode(trackingSettings))
+        precondition(estimateRoundTrip.effectiveWorkTrackingStartedAt == date(2026, 11, 24, 9)
+                     && estimateRoundTrip.estimatedRestroomBreakMinutes == 35
+                     && estimateRoundTrip.estimatedPhoneBreakMinutes == 15
+                     && estimateRoundTrip.estimatedShortBreakMinutes == 10,
+                     "每日休息估算配置持久化失败")
+        let breakStart = date(2026, 11, 24, 10, 15)
+        let breakRecord = WorkBreakRecord(id: UUID(), type: .restroom, startTime: breakStart,
+                                          endTime: date(2026, 11, 24, 10, 25), deductFromWork: true)
+        let savedBreak = try! JSONDecoder().decode(WorkBreakRecord.self, from: JSONEncoder().encode(breakRecord))
+        precondition(savedBreak.type == .restroom && savedBreak.startTime == breakRecord.startTime
+                     && savedBreak.endTime == breakRecord.endTime && savedBreak.deductFromWork,
+                     "休息记录编码 / 解码失败")
+        let lunchBreak = WorkBreakRecord(id: UUID(), type: .meal,
+                                         startTime: date(2026, 11, 24, 12, 15),
+                                         endTime: date(2026, 11, 24, 12, 45), deductFromWork: true)
+        let afterWorkBreak = WorkBreakRecord(id: UUID(), type: .phone,
+                                             startTime: date(2026, 11, 24, 18, 15),
+                                             endTime: date(2026, 11, 24, 18, 30), deductFromWork: true)
+        let deductedBreakSeconds = WorkBreakCalculator.deductedWorkSeconds(
+            records: [breakRecord, lunchBreak, afterWorkBreak], activeRecord: nil,
+            now: date(2026, 11, 24, 18, 30), on: date(2026, 11, 24),
+            settings: migrated, calendar: calendar
+        )
+        precondition(abs(deductedBreakSeconds - 600) < 0.01,
+                     "有效工时扣除应只计算工作时段内的休息，且不得重复扣除午休或下班后的时间")
+        var workdayWithoutLunch = migrated
+        workdayWithoutLunch.lunchBreakEnabled = false
+        let lunchCountsAsWorkBreakWhenNoLunchSchedule = WorkBreakCalculator.deductedWorkSeconds(
+            records: [lunchBreak], activeRecord: nil,
+            now: date(2026, 11, 24, 18), on: date(2026, 11, 24),
+            settings: workdayWithoutLunch, calendar: calendar
+        )
+        precondition(abs(lunchCountsAsWorkBreakWhenNoLunchSchedule - 1800) < 0.01,
+                     "未启用午休时，中午时段属于工作时间，期间记录的休息应正常计入")
+        var estimateSettings = migrated
+        estimateSettings.effectiveWorkTrackingEnabled = true
+        estimateSettings.effectiveWorkTrackingStartedAt = date(2026, 11, 24)
+        estimateSettings.estimatedRestroomBreakMinutes = 30
+        estimateSettings.estimatedPhoneBreakMinutes = 20
+        estimateSettings.estimatedShortBreakMinutes = 10
+        estimateSettings.estimatedMealBreakMinutes = 45
+        estimateSettings.deductMealBreaks = false
+        let estimatedDeduction = WorkBreakCalculator.deductedWorkSeconds(
+            records: [breakRecord], activeRecord: nil,
+            now: date(2026, 11, 24, 18, 0), on: date(2026, 11, 24),
+            settings: estimateSettings, calendar: calendar
+        )
+        precondition(abs(estimatedDeduction - 3600) < 0.01,
+                     "每日估算应按类型合并，且不得与同类型实际记录重复相加或扣除未启用的吃饭估算")
+        let longerActualBreak = WorkBreakRecord(id: UUID(), type: .restroom,
+                                                startTime: date(2026, 11, 24, 10),
+                                                endTime: date(2026, 11, 24, 10, 45), deductFromWork: true)
+        let actualExceedsEstimate = WorkBreakCalculator.deductedWorkSeconds(
+            records: [longerActualBreak], activeRecord: nil,
+            now: date(2026, 11, 24, 18), on: date(2026, 11, 24),
+            settings: estimateSettings, calendar: calendar
+        )
+        precondition(abs(actualExceedsEstimate - 4500) < 0.01,
+                     "实际休息超过每日估算时，应按实际时长扣除")
+        let partialDayEstimate = WorkBreakCalculator.deductedWorkSeconds(
+            records: [], activeRecord: nil,
+            now: date(2026, 11, 24, 10), on: date(2026, 11, 24),
+            settings: estimateSettings, calendar: calendar
+        )
+        precondition(abs(partialDayEstimate - 450) < 0.01,
+                     "当天估算应随已经过的计划工作时间逐步累计")
+        let weekendEstimate = WorkBreakCalculator.deductedWorkSeconds(
+            records: [], activeRecord: nil,
+            now: date(2026, 11, 29, 18), on: date(2026, 11, 29),
+            settings: estimateSettings, calendar: calendar
+        )
+        precondition(weekendEstimate == 0,
+                     "非工作日不应应用每日固定休息估算")
+        var trackingNotStartedYet = estimateSettings
+        trackingNotStartedYet.effectiveWorkTrackingStartedAt = date(2026, 11, 25)
+        let beforeTrackingStart = WorkBreakCalculator.deductedWorkSeconds(
+            records: [], activeRecord: nil,
+            now: date(2026, 11, 24, 18), on: date(2026, 11, 24),
+            settings: trackingNotStartedYet, calendar: calendar
+        )
+        precondition(beforeTrackingStart == 0,
+                     "启用每日估算前的历史日期不应被追溯扣除")
         let legacyFamilyJSON = #"{"monthlySalary":15000,"startHour":8,"startMinute":30,"endHour":17,"endMinute":30,"lunchStartHour":12,"lunchEndHour":13,"familyMembers":[{"name":"旧家庭成员","monthlySalary":9000}]}"#.data(using: .utf8)!
         let migratedFamily = try! JSONDecoder().decode(SalarySettings.self, from: legacyFamilyJSON)
         let migratedMember = migratedFamily.familyMembers[0]
@@ -84,7 +202,8 @@ struct CalculatorChecks {
                      "旧家庭成员应继承升级前的共享每周工作制度")
         precondition(migratedMember.startHour == 8 && migratedMember.startMinute == 30
                      && migratedMember.endHour == 17 && migratedMember.endMinute == 30
-                     && migratedMember.lunchStartHour == 12 && migratedMember.lunchEndHour == 13,
+                     && migratedMember.lunchStartHour == 12 && migratedMember.lunchEndHour == 13
+                     && migratedMember.lunchBreakEnabled,
                      "旧版本家庭成员应继承升级前的共享工作时间")
         let legacyPersonalScheduleJSON = #"{"monthlySalary":15000,"workdays":[2,3,4,5,6],"startHour":8,"endHour":17,"familyMembers":[{"name":"已有独立时间的成员","monthlySalary":9000,"startHour":10,"startMinute":30,"endHour":19,"endMinute":30,"lunchStartHour":13,"lunchEndHour":14}]}"#.data(using: .utf8)!
         let migratedPersonalSchedule = try! JSONDecoder().decode(SalarySettings.self, from: legacyPersonalScheduleJSON)
@@ -221,9 +340,12 @@ struct CalculatorChecks {
         var displaySettings = SalarySettings()
         displaySettings.showSecondRate = true
         displaySettings.showAnnualSalary = true
+        displaySettings.progressBarStyle = .segmented
+        displaySettings.lunchBreakEnabled = true
         let displayRoundTrip = try! JSONDecoder().decode(SalarySettings.self, from: JSONEncoder().encode(displaySettings))
-        precondition(displayRoundTrip.showSecondRate && displayRoundTrip.showAnnualSalary,
-                     "秒薪和年薪显示开关持久化失败")
+        precondition(displayRoundTrip.showSecondRate && displayRoundTrip.showAnnualSalary
+                     && displayRoundTrip.progressBarStyle == .segmented && displayRoundTrip.lunchBreakEnabled,
+                     "秒薪、年薪、进度条样式和午休开关持久化失败")
         precondition(abs(morning.secondRate - morning.hourlyRate / 3600) < 0.000001
                      && abs(morning.annualSalary - settings.monthlySalary * 12) < 0.01,
                      "秒薪或年薪计算错误")

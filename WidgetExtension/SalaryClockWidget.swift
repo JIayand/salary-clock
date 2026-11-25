@@ -427,6 +427,7 @@ private struct SalaryClockWidgetContent: View {
             settings.lunchStartMinute = member.lunchStartMinute
             settings.lunchEndHour = member.lunchEndHour
             settings.lunchEndMinute = member.lunchEndMinute
+            settings.lunchBreakEnabled = member.lunchBreakEnabled
             return FamilyWidgetRow(
                 id: member.id,
                 name: member.name.isEmpty ? "未命名成员" : member.name,
@@ -443,7 +444,7 @@ private struct SalaryClockWidgetContent: View {
     private var familyTotalText: String {
         guard !entry.settings.privacyMode else { return "¥••••" }
         let total = familyRows.reduce(0.0) { $0 + $1.snapshot.earned }
-        return String(format: "¥%.*f", entry.settings.decimals, total)
+        return NumericFormatting.currency(total, fractionDigits: entry.settings.decimals)
     }
 
     private func familyMemberCard(_ row: FamilyWidgetRow) -> some View {
@@ -455,22 +456,17 @@ private struct SalaryClockWidgetContent: View {
                     .foregroundStyle(foreground.opacity(0.92))
                     .lineLimit(1)
                 Spacer(minLength: 2)
-                Text(String(format: "%.*f%%", entry.settings.percentDecimals, row.snapshot.progress * 100))
+                Text(NumericFormatting.number(row.snapshot.progress * 100, fractionDigits: entry.settings.percentDecimals) + "%")
                     .font(.system(size: 10, weight: .semibold, design: .rounded).monospacedDigit())
                     .foregroundStyle(foreground.opacity(0.72))
             }
-            Text(entry.settings.privacyMode ? "¥••••" : String(format: "¥%.*f", entry.settings.decimals, row.snapshot.earned))
+            Text(entry.settings.privacyMode ? "¥••••" : NumericFormatting.currency(row.snapshot.earned, fractionDigits: entry.settings.decimals))
                 .font(.system(size: 21, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(accent)
                 .lineLimit(1)
                 .minimumScaleFactor(0.62)
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(foreground.opacity(0.12))
-                    Capsule().fill(accent).frame(width: proxy.size.width * min(1, max(0, row.snapshot.progress)))
-                }
-            }
-            .frame(height: 5)
+            SalaryProgressBar(progress: row.snapshot.progress, style: entry.settings.progressBarStyle,
+                              trackColor: foreground.opacity(0.12), fillColor: accent, height: 5)
             HStack {
                 if row.snapshot.isOvertime {
                     Text("已加班 \(overtimeText(row.snapshot.overtimeSeconds))")
@@ -519,7 +515,7 @@ private struct SalaryClockWidgetContent: View {
     }
 
     private var progressText: String {
-        let percent = String(format: "%.*f%%", entry.settings.percentDecimals, entry.snapshot.progress * 100)
+        let percent = NumericFormatting.number(entry.snapshot.progress * 100, fractionDigits: entry.settings.percentDecimals) + "%"
         return localized("今日进度", "今日進度", "Progress") + "  " + percent
     }
 
@@ -546,15 +542,8 @@ private struct SalaryClockWidgetContent: View {
     }
 
     private func progressBar(height: CGFloat) -> some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                Capsule().fill(foreground.opacity(0.13))
-                Capsule()
-                    .fill(accent)
-                    .frame(width: proxy.size.width * min(1, max(0, entry.snapshot.progress)))
-            }
-        }
-        .frame(height: height)
+        SalaryProgressBar(progress: entry.snapshot.progress, style: entry.settings.progressBarStyle,
+                          trackColor: foreground.opacity(0.13), fillColor: accent, height: height)
     }
 
     private var visibleStats: [(String, String)] {
@@ -590,9 +579,9 @@ private struct SalaryClockWidgetContent: View {
     private var primaryValue: String {
         if entry.settings.privacyMode { return "¥••••" }
         if entry.settings.mode == .percent {
-            return String(format: "%.*f%%", entry.settings.percentDecimals, entry.snapshot.progress * 100)
+            return NumericFormatting.number(entry.snapshot.progress * 100, fractionDigits: entry.settings.percentDecimals) + "%"
         }
-        return String(format: "¥%.*f", entry.settings.decimals, entry.snapshot.earned)
+        return NumericFormatting.currency(entry.snapshot.earned, fractionDigits: entry.settings.decimals)
     }
 
     private var overtimeColor: Color { Color(red: 1.0, green: 0.29, blue: 0.31) }
@@ -603,7 +592,7 @@ private struct SalaryClockWidgetContent: View {
     }
 
     private func displayMoney(_ value: Double) -> String {
-        entry.settings.privacyMode ? "¥••••" : String(format: "¥%.*f", entry.settings.decimals, value)
+        entry.settings.privacyMode ? "¥••••" : NumericFormatting.currency(value, fractionDigits: entry.settings.decimals)
     }
 
     private func localized(_ simplified: String, _ traditional: String, _ english: String) -> String {

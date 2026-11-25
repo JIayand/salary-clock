@@ -29,6 +29,7 @@ struct SalarySettings: Codable {
     var lunchStartMinute: Int = 0
     var lunchEndHour: Int = 13
     var lunchEndMinute: Int = 0
+    var lunchBreakEnabled: Bool = false
     var mode: DisplayMode = .money
     var theme: WidgetTheme = .midnight
     var decimals: Int = 4
@@ -39,6 +40,7 @@ struct SalarySettings: Codable {
     var showWeekEarned: Bool = true
     var showMonthEarned: Bool = true
     var showProgress: Bool = true
+    var progressBarStyle: ProgressBarStyle = .gradient
     var showHourlyRate: Bool = true
     var showDailyRate: Bool = true
     var showSecondRate: Bool = false
@@ -62,15 +64,31 @@ struct SalarySettings: Codable {
     var familyMembers: [FamilySalaryMember] = []
     var windowLocked: Bool = false
     var alwaysOnTop: Bool = false
+    // Optional effective-work tracking; disabled for existing installations.
+    var effectiveWorkTrackingEnabled: Bool = false
+    var effectiveWorkTrackingStartedAt: Date? = nil
+    var deductRestroomBreaks: Bool = true
+    var deductPhoneBreaks: Bool = true
+    var deductShortBreaks: Bool = true
+    var deductMealBreaks: Bool = false
+    var deductOtherBreaks: Bool = true
+    // Daily estimated break minutes by category; estimates are independent of actual records.
+    var estimatedRestroomBreakMinutes: Int = 30
+    var estimatedPhoneBreakMinutes: Int = 20
+    var estimatedShortBreakMinutes: Int = 10
+    var estimatedMealBreakMinutes: Int = 0
+    var estimatedOtherBreakMinutes: Int = 0
 
     private enum CodingKeys: String, CodingKey {
         case monthlySalary, yearEndBonus, workdays, startHour, startMinute, endHour, endMinute
-        case lunchStartHour, lunchStartMinute, lunchEndHour, lunchEndMinute
+        case lunchStartHour, lunchStartMinute, lunchEndHour, lunchEndMinute, lunchBreakEnabled
         case mode, theme, decimals, percentDecimals, secondRateDecimals, useChinaHolidayCalendar, windowOpacity
-        case showWeekEarned, showMonthEarned, showProgress, showHourlyRate, showDailyRate, showSecondRate, showAnnualSalary, showWorkDuration, durationDisplay, hourglassAnimationEnabled, compactMode
+        case showWeekEarned, showMonthEarned, showProgress, progressBarStyle, showHourlyRate, showDailyRate, showSecondRate, showAnnualSalary, showWorkDuration, durationDisplay, hourglassAnimationEnabled, compactMode
         case useAfterTaxSalary, socialInsuranceBase, socialInsuranceRate, housingFundBase, housingFundRate, monthlySpecialDeductions, numberAnimation
         case privacyMode, afterWorkReminderEnabled, afterWorkReminderHour, afterWorkReminderMinute, wishList
         case familyMembers, windowLocked, alwaysOnTop, language
+        case effectiveWorkTrackingEnabled, effectiveWorkTrackingStartedAt, deductRestroomBreaks, deductPhoneBreaks, deductShortBreaks, deductMealBreaks, deductOtherBreaks
+        case estimatedRestroomBreakMinutes, estimatedPhoneBreakMinutes, estimatedShortBreakMinutes, estimatedMealBreakMinutes, estimatedOtherBreakMinutes
     }
 
     init() {}
@@ -89,6 +107,7 @@ struct SalarySettings: Codable {
         lunchStartMinute = try values.decodeIfPresent(Int.self, forKey: .lunchStartMinute) ?? 0
         lunchEndHour = try values.decodeIfPresent(Int.self, forKey: .lunchEndHour) ?? 13
         lunchEndMinute = try values.decodeIfPresent(Int.self, forKey: .lunchEndMinute) ?? 0
+        lunchBreakEnabled = try values.decodeIfPresent(Bool.self, forKey: .lunchBreakEnabled) ?? true
         mode = try values.decodeIfPresent(DisplayMode.self, forKey: .mode) ?? .money
         theme = try values.decodeIfPresent(WidgetTheme.self, forKey: .theme) ?? .midnight
         decimals = try values.decodeIfPresent(Int.self, forKey: .decimals) ?? 4
@@ -99,6 +118,7 @@ struct SalarySettings: Codable {
         showWeekEarned = try values.decodeIfPresent(Bool.self, forKey: .showWeekEarned) ?? true
         showMonthEarned = try values.decodeIfPresent(Bool.self, forKey: .showMonthEarned) ?? true
         showProgress = try values.decodeIfPresent(Bool.self, forKey: .showProgress) ?? true
+        progressBarStyle = try values.decodeIfPresent(ProgressBarStyle.self, forKey: .progressBarStyle) ?? .gradient
         showHourlyRate = try values.decodeIfPresent(Bool.self, forKey: .showHourlyRate) ?? true
         showDailyRate = try values.decodeIfPresent(Bool.self, forKey: .showDailyRate) ?? true
         showSecondRate = try values.decodeIfPresent(Bool.self, forKey: .showSecondRate) ?? false
@@ -136,11 +156,24 @@ struct SalarySettings: Codable {
                 familyMembers[index].lunchStartMinute = lunchStartMinute
                 familyMembers[index].lunchEndHour = lunchEndHour
                 familyMembers[index].lunchEndMinute = lunchEndMinute
+                familyMembers[index].lunchBreakEnabled = lunchBreakEnabled
                 familyMembers[index].needsScheduleMigration = false
             }
         }
         windowLocked = try values.decodeIfPresent(Bool.self, forKey: .windowLocked) ?? false
         alwaysOnTop = try values.decodeIfPresent(Bool.self, forKey: .alwaysOnTop) ?? false
+        effectiveWorkTrackingEnabled = try values.decodeIfPresent(Bool.self, forKey: .effectiveWorkTrackingEnabled) ?? false
+        effectiveWorkTrackingStartedAt = try values.decodeIfPresent(Date.self, forKey: .effectiveWorkTrackingStartedAt)
+        deductRestroomBreaks = try values.decodeIfPresent(Bool.self, forKey: .deductRestroomBreaks) ?? true
+        deductPhoneBreaks = try values.decodeIfPresent(Bool.self, forKey: .deductPhoneBreaks) ?? true
+        deductShortBreaks = try values.decodeIfPresent(Bool.self, forKey: .deductShortBreaks) ?? true
+        deductMealBreaks = try values.decodeIfPresent(Bool.self, forKey: .deductMealBreaks) ?? false
+        deductOtherBreaks = try values.decodeIfPresent(Bool.self, forKey: .deductOtherBreaks) ?? true
+        estimatedRestroomBreakMinutes = max(0, try values.decodeIfPresent(Int.self, forKey: .estimatedRestroomBreakMinutes) ?? 30)
+        estimatedPhoneBreakMinutes = max(0, try values.decodeIfPresent(Int.self, forKey: .estimatedPhoneBreakMinutes) ?? 20)
+        estimatedShortBreakMinutes = max(0, try values.decodeIfPresent(Int.self, forKey: .estimatedShortBreakMinutes) ?? 10)
+        estimatedMealBreakMinutes = max(0, try values.decodeIfPresent(Int.self, forKey: .estimatedMealBreakMinutes) ?? 0)
+        estimatedOtherBreakMinutes = max(0, try values.decodeIfPresent(Int.self, forKey: .estimatedOtherBreakMinutes) ?? 0)
     }
 }
 
@@ -164,13 +197,14 @@ struct FamilySalaryMember: Codable, Identifiable, Equatable {
     var lunchStartMinute: Int = 0
     var lunchEndHour: Int = 13
     var lunchEndMinute: Int = 0
+    var lunchBreakEnabled: Bool = false
     fileprivate var needsScheduleMigration: Bool = false
     fileprivate var needsWorkdaysMigration: Bool = false
 
     private enum CodingKeys: String, CodingKey {
         case id, name, monthlySalary, yearEndBonus, workdays, useAfterTaxSalary, socialInsuranceBase
         case socialInsuranceRate, housingFundBase, housingFundRate, monthlySpecialDeductions
-        case startHour, startMinute, endHour, endMinute, lunchStartHour, lunchStartMinute, lunchEndHour, lunchEndMinute
+        case startHour, startMinute, endHour, endMinute, lunchStartHour, lunchStartMinute, lunchEndHour, lunchEndMinute, lunchBreakEnabled
     }
 
     init(id: UUID = UUID(), name: String, monthlySalary: Double, yearEndBonus: Double = 0, useAfterTaxSalary: Bool = false,
@@ -210,6 +244,7 @@ struct FamilySalaryMember: Codable, Identifiable, Equatable {
         lunchStartMinute = try values.decodeIfPresent(Int.self, forKey: .lunchStartMinute) ?? 0
         lunchEndHour = try values.decodeIfPresent(Int.self, forKey: .lunchEndHour) ?? 13
         lunchEndMinute = try values.decodeIfPresent(Int.self, forKey: .lunchEndMinute) ?? 0
+        lunchBreakEnabled = try values.decodeIfPresent(Bool.self, forKey: .lunchBreakEnabled) ?? true
         needsScheduleMigration = !values.contains(.startHour) && !values.contains(.endHour)
         needsWorkdaysMigration = !values.contains(.workdays)
     }
@@ -231,6 +266,14 @@ enum DisplayMode: String, Codable, CaseIterable {
 enum DurationDisplay: String, Codable, CaseIterable, Identifiable {
     case hoursMinutesSeconds = "时分秒"
     case hoursMinutes = "时分"
+    var id: String { rawValue }
+}
+
+enum ProgressBarStyle: String, Codable, CaseIterable, Identifiable {
+    case rounded = "圆角实心"
+    case gradient = "渐变"
+    case segmented = "分段"
+    case thin = "细线"
     var id: String { rawValue }
 }
 
@@ -339,7 +382,7 @@ enum SalaryCalculator {
             + Double(calendar.component(.nanosecond, from: now)) / 1_000_000_000
 
         let shiftDuration = max(0, end - start)
-        let validLunch = lunchEnd > lunchStart
+        let validLunch = settings.lunchBreakEnabled && lunchEnd > lunchStart
         let lunchOverlap = validLunch
             ? max(0, min(end, lunchEnd) - max(start, lunchStart))
             : 0
@@ -412,13 +455,13 @@ enum SalaryCalculator {
                     let lunchStart = seconds(settings.lunchStartHour, settings.lunchStartMinute)
                     let lunchEnd = seconds(settings.lunchEndHour, settings.lunchEndMinute)
                     let shift = max(0, end - start)
-                    let lunch = lunchEnd > lunchStart ? max(0, min(end, lunchEnd) - max(start, lunchStart)) : 0
+                    let lunch = settings.lunchBreakEnabled && lunchEnd > lunchStart ? max(0, min(end, lunchEnd) - max(start, lunchStart)) : 0
                     let effective = max(0, shift - lunch)
                     let nowSeconds = seconds(calendar.component(.hour, from: now), calendar.component(.minute, from: now))
                         + Double(calendar.component(.second, from: now))
                         + Double(calendar.component(.nanosecond, from: now)) / 1_000_000_000
                     let elapsedRaw = min(shift, max(0, nowSeconds - start))
-                    let elapsedLunch = lunchEnd > lunchStart ? max(0, min(nowSeconds, lunchEnd) - max(start, lunchStart)) : 0
+                    let elapsedLunch = settings.lunchBreakEnabled && lunchEnd > lunchStart ? max(0, min(nowSeconds, lunchEnd) - max(start, lunchStart)) : 0
                     let progress = effective > 0 ? min(1, max(0, elapsedRaw - elapsedLunch) / effective) : 0
                     totalEarned += dailyRate * progress
                 }
