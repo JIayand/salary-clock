@@ -106,14 +106,14 @@ struct EffectiveWorkSettingsSection: View {
                     estimateRow("吃饭", value: $model.settings.estimatedMealBreakMinutes)
                     estimateRow("其他", value: $model.settings.estimatedOtherBreakMinutes)
                     Divider()
-                    HStack {
+                    HStack(spacing: 5) {
                         Text("每日估算合计")
                             .font(.system(size: 11, weight: .medium))
+                        HelpPopover(title: "每日摸鱼估算", message: "实际记录与每日估算按类型分别取较大值，不会重复相加。只有对应类型开启工时扣除时，估算才会影响有效工时；设置为 0 分钟即可关闭该类型估算。估算仅用于工作日，并随计划工作时间逐步累计；午休和下班时间不会计入估算扣除。")
                         Spacer()
                         Text("\(estimatedDailyMinutes) 分钟")
                             .font(.system(size: 12, weight: .semibold, design: .rounded).monospacedDigit())
                     }
-                    HelpPopover(title: "每日摸鱼估算", message: "实际记录与每日估算按类型分别取较大值，不会重复相加。只有对应类型开启工时扣除时，估算才会影响有效工时；设置为 0 分钟即可关闭该类型估算。估算仅用于工作日，并随计划工作时间逐步累计；午休和下班时间不会计入估算扣除。")
                 }
 
                 SettingsCard(title: "摸鱼记录", subtitle: "", icon: "list.bullet.rectangle") {

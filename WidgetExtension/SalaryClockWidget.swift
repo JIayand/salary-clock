@@ -3,25 +3,36 @@ import WidgetKit
 
 private let salaryAppGroup = "WXFKXAFBJ8.salaryclock"
 private let salarySettingsKey = "salary-clock.settings.v1"
+private let salaryBreakRecordsKey = "salary-clock.work-break-records.v1"
+private let salaryActiveBreakKey = "salary-clock.active-work-break.v1"
+private let salaryOvertimeStartedAtKey = "salary-clock.overtime-started-at.v1"
 private let salaryWidgetKind = "SalaryClockWidget"
+
+private struct SalaryClockWidgetSharedState {
+    var breakRecords: [WorkBreakRecord] = []
+    var activeBreak: WorkBreakRecord?
+    var overtimeStartedAt: Date?
+}
 
 struct SalaryClockWidgetEntry: TimelineEntry {
     let date: Date
     let settings: SalarySettings
     let snapshot: SalarySnapshot
+    let todayBreakSeconds: TimeInterval
 }
 
 struct SalaryClockWidgetProvider: TimelineProvider {
     func placeholder(in context: Context) -> SalaryClockWidgetEntry {
-        makeEntry(date: Date(), settings: SalarySettings())
+        makeEntry(date: Date(), settings: SalarySettings(), sharedState: SalaryClockWidgetSharedState())
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SalaryClockWidgetEntry) -> Void) {
-        completion(makeEntry(date: Date(), settings: loadSettings()))
+        completion(makeEntry(date: Date(), settings: loadSettings(), sharedState: loadSharedState()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SalaryClockWidgetEntry>) -> Void) {
         let settings = loadSettings()
+        let sharedState = loadSharedState()
         let calendar = Calendar.current
         let now = Date()
         let minuteStart = calendar.dateInterval(of: .minute, for: now)?.start ?? now
@@ -32,7 +43,7 @@ struct SalaryClockWidgetProvider: TimelineProvider {
             guard let date = calendar.date(byAdding: .minute, value: offset, to: minuteStart) else {
                 return nil
             }
-            return makeEntry(date: date, settings: settings)
+            return makeEntry(date: date, settings: settings, sharedState: sharedState)
         }
 
         let refreshDate = entries.last?.date.addingTimeInterval(60) ?? now.addingTimeInterval(60 * 60)
@@ -47,11 +58,65 @@ struct SalaryClockWidgetProvider: TimelineProvider {
         return settings
     }
 
-    private func makeEntry(date: Date, settings: SalarySettings) -> SalaryClockWidgetEntry {
-        SalaryClockWidgetEntry(
+    private func loadSharedState() -> SalaryClockWidgetSharedState {
+        guard let defaults = UserDefaults(suiteName: salaryAppGroup) else {
+            return SalaryClockWidgetSharedState()
+        }
+        var state = SalaryClockWidgetSharedState()
+        if let data = defaults.data(forKey: salaryBreakRecordsKey),
+           let records = try? JSONDecoder().decode([WorkBreakRecord].self, from: data) {
+            state.breakRecords = records
+        }
+        if let data = defaults.data(forKey: salaryActiveBreakKey),
+           let active = try? JSONDecoder().decode(WorkBreakRecord.self, from: data) {
+            state.activeBreak = active
+        }
+        state.overtimeStartedAt = defaults.object(forKey: salaryOvertimeStartedAtKey) as? Date
+        return state
+    }
+
+    private func makeEntry(
+        date: Date,
+        settings: SalarySettings,
+        sharedState: SalaryClockWidgetSharedState
+    ) -> SalaryClockWidgetEntry {
+        let calculated = SalaryCalculator.snapshot(settings: settings, now: date)
+        let overtimeSeconds = sharedState.overtimeStartedAt.map { max(0, date.timeIntervalSince($0)) } ?? 0
+        let isOvertime = sharedState.overtimeStartedAt != nil
+        let snapshot = SalarySnapshot(
+            earned: calculated.earned,
+            progress: calculated.progress,
+            todayWorkSeconds: calculated.todayWorkSeconds,
+            elapsedWorkSeconds: calculated.elapsedWorkSeconds,
+            monthlyWorkdays: calculated.monthlyWorkdays,
+            isWorkday: calculated.isWorkday,
+            isWorkingNow: calculated.isWorkingNow && !isOvertime,
+            remainingSeconds: calculated.remainingSeconds,
+            overtimeSeconds: overtimeSeconds,
+            isOvertime: isOvertime,
+            isPublicHoliday: calculated.isPublicHoliday,
+            isMakeupWorkday: calculated.isMakeupWorkday,
+            dailyRate: calculated.dailyRate,
+            hourlyRate: calculated.hourlyRate,
+            weekEarned: calculated.weekEarned,
+            monthEarned: calculated.monthEarned,
+            tax: calculated.tax,
+            netMonthlySalary: calculated.netMonthlySalary,
+            secondRate: calculated.secondRate,
+            annualSalary: calculated.annualSalary
+        )
+        let todayBreakSeconds = WorkBreakCalculator.combinedBreakSeconds(
+            records: sharedState.breakRecords,
+            activeRecord: sharedState.activeBreak,
+            now: date,
+            on: date,
+            settings: settings
+        )
+        return SalaryClockWidgetEntry(
             date: date,
             settings: settings,
-            snapshot: SalaryCalculator.snapshot(settings: settings, now: date)
+            snapshot: snapshot,
+            todayBreakSeconds: todayBreakSeconds
         )
     }
 }
@@ -199,6 +264,13 @@ private struct SalaryClockWidgetContent: View {
                     .foregroundStyle(foreground.opacity(0.55))
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
+                if entry.settings.effectiveWorkTrackingEnabled {
+                    Text("\(localized("今日预估休息", "今日預估休息", "Estimated break"))  \(duration(entry.todayBreakSeconds))")
+                        .font(.system(size: 9, weight: .medium, design: .rounded).monospacedDigit())
+                        .foregroundStyle(foreground.opacity(0.55))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                }
                 if entry.snapshot.isOvertime { overtimeStatusLine }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -541,7 +613,8 @@ private struct SalaryClockWidgetContent: View {
             (localized("本周收入", "本週收入", "This week"), displayMoney(entry.snapshot.weekEarned), entry.settings.showWeekEarned),
             (localized("本月收入", "本月收入", "This month"), displayMoney(entry.snapshot.monthEarned), entry.settings.showMonthEarned),
             (localized("时薪", "時薪", "Hourly rate"), displayMoney(entry.snapshot.hourlyRate), entry.settings.showHourlyRate),
-            (localized("日薪", "日薪", "Daily rate"), displayMoney(entry.snapshot.dailyRate), entry.settings.showDailyRate)
+            (localized("日薪", "日薪", "Daily rate"), displayMoney(entry.snapshot.dailyRate), entry.settings.showDailyRate),
+            (localized("今日预估休息", "今日預估休息", "Estimated break"), duration(entry.todayBreakSeconds), entry.settings.effectiveWorkTrackingEnabled)
         ]
         return all.filter { $0.2 }.map { ($0.0, $0.1) }
     }

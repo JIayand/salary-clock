@@ -407,7 +407,7 @@ struct FloatingWidgetView: View {
             HStack(spacing: 0) {
                 metric("有效工作", duration(model.todayEffectiveWorkSeconds))
                 Spacer(minLength: 5)
-                metric("今日休息", duration(model.todayBreakSeconds))
+                metric("今日预估休息", duration(model.todayBreakSeconds))
                 Spacer(minLength: 5)
                 metric("折算时薪", model.settings.privacyMode ? "¥ ••••" : money(model.effectiveHourlyRate))
             }

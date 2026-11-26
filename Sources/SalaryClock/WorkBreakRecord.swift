@@ -65,6 +65,45 @@ enum WorkBreakCalculator {
         return deducts ? configuredMinutes(for: type, settings: settings) : 0
     }
 
+    static func combinedBreakSeconds(
+        records: [WorkBreakRecord],
+        activeRecord: WorkBreakRecord?,
+        now: Date,
+        on date: Date,
+        settings: SalarySettings,
+        deductOnly: Bool = false,
+        calendar: Calendar = .current
+    ) -> TimeInterval {
+        let dayStart = calendar.startOfDay(for: date)
+        guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { return 0 }
+        let allRecords = records + (activeRecord.map { [$0] } ?? [])
+        let today = calendar.startOfDay(for: now)
+        let trackingStartDay = settings.effectiveWorkTrackingStartedAt.map { calendar.startOfDay(for: $0) } ?? today
+        let estimateEnabled = settings.effectiveWorkTrackingEnabled
+            && dayStart >= trackingStartDay
+            && dayStart <= today
+            && SalaryCalculator.snapshot(
+                settings: settings,
+                now: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: dayStart) ?? dayStart,
+                calendar: calendar
+            ).isWorkday
+
+        return WorkBreakType.allCases.reduce(0) { total, type in
+            let actual = allRecords.reduce(0.0) { subtotal, record in
+                guard record.type == type, !deductOnly || record.deductFromWork else { return subtotal }
+                let recordEnd = min(record.endTime ?? now, dayEnd)
+                let overlapStart = max(dayStart, record.startTime)
+                let overlapEnd = min(dayEnd, recordEnd)
+                return subtotal + max(0, overlapEnd.timeIntervalSince(overlapStart))
+            }
+            let configuredMinutes = deductOnly
+                ? estimatedMinutes(for: type, settings: settings)
+                : configuredMinutes(for: type, settings: settings)
+            let estimate = estimateEnabled ? Double(configuredMinutes) * 60 : 0
+            return total + max(actual, estimate)
+        }
+    }
+
     static func deductedWorkSeconds(
         records: [WorkBreakRecord],
         activeRecord: WorkBreakRecord?,

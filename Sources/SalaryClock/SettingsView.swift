@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject private var model: SalaryClockModel
@@ -6,6 +7,11 @@ struct SettingsView: View {
     @State private var selectedTaxProfile = "self"
     @State private var manualSearch = ""
     @State private var selectedChangelogVersion: String?
+    @State private var showingConfigExporter = false
+    @State private var showingConfigImporter = false
+    @State private var pendingImportedSettings: SalarySettings?
+    @State private var showingImportConfirmation = false
+    @State private var configTransferMessage: String?
     @AppStorage("salary-clock.hasSeenSetupGuide") private var hasSeenSetupGuide = false
 
     private var profileWorkdays: Binding<Set<Int>> {
@@ -81,6 +87,10 @@ struct SettingsView: View {
                                 manualSection
                             } else if selectedCategory == "关于" {
                                 aboutSection
+                            } else if selectedCategory == "通用设置" {
+                                appearanceSection
+                                privacySection
+                                configurationTransferSection
                             } else {
                                 appearanceSection
                                 privacySection
@@ -101,6 +111,49 @@ struct SettingsView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .preferredColorScheme(nil)
         .environment(\.locale, model.settings.language.locale)
+        .fileExporter(
+            isPresented: $showingConfigExporter,
+            document: SalarySettingsDocument(settings: model.settings),
+            contentType: .json,
+            defaultFilename: "薪资时钟配置-\(Date.now.formatted(.iso8601.year().month().day()))"
+        ) { result in
+            if case .failure(let error) = result { configTransferMessage = "导出失败：\(error.localizedDescription)" }
+            if case .success = result { configTransferMessage = "配置已导出。" }
+        }
+        .fileImporter(isPresented: $showingConfigImporter, allowedContentTypes: [.json], allowsMultipleSelection: false) { result in
+            do {
+                let urls = try result.get()
+                guard let url = urls.first else { return }
+                let accessed = url.startAccessingSecurityScopedResource()
+                defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+                let data = try Data(contentsOf: url)
+                let imported = try JSONDecoder().decode(SalarySettings.self, from: data)
+                pendingImportedSettings = imported
+                showingImportConfirmation = true
+            } catch {
+                configTransferMessage = "导入失败：文件无效或格式不受支持。\(error.localizedDescription)"
+            }
+        }
+        .alert("导入配置", isPresented: $showingImportConfirmation) {
+            Button("取消", role: .cancel) { pendingImportedSettings = nil }
+            Button("覆盖当前配置", role: .destructive) {
+                if let imported = pendingImportedSettings {
+                    model.settings = imported
+                    configTransferMessage = "配置已导入并生效。"
+                }
+                pendingImportedSettings = nil
+            }
+        } message: {
+            Text("导入将覆盖当前薪资、工作时间、家庭成员、显示偏好、提醒和愿望清单配置。此操作不会导入历史加班记录、休息记录或系统通知权限。建议先导出备份。")
+        }
+        .alert("配置导入与导出", isPresented: Binding(
+            get: { configTransferMessage != nil },
+            set: { if !$0 { configTransferMessage = nil } }
+        )) {
+            Button("确定", role: .cancel) { configTransferMessage = nil }
+        } message: {
+            Text(configTransferMessage ?? "")
+        }
     }
 
     private var setupGuideCard: some View {
@@ -127,7 +180,6 @@ struct SettingsView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Spacer().frame(height: 18)
             ForEach(categories, id: \.0) { item in
                 let selected = selectedCategory == item.0
                 Button { selectedCategory = item.0 } label: {
@@ -629,7 +681,6 @@ struct SettingsView: View {
     private var aboutSection: some View {
         let info = Bundle.main.infoDictionary ?? [:]
         let version = info["CFBundleShortVersionString"] as? String ?? "—"
-        let build = info["CFBundleVersion"] as? String ?? "—"
         let changelogURL = Bundle.main.url(forResource: "CHANGELOG", withExtension: "md")
         let changelog = changelogURL.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? "暂时无法读取更新日志。"
         let versions = parsedChangelogVersions(from: changelog)
@@ -664,11 +715,6 @@ struct SettingsView: View {
                     Label("版本号", systemImage: "tag")
                     Spacer()
                     Text("v\(version)").font(.system(size: 12, weight: .semibold, design: .rounded)).monospacedDigit()
-                }
-                HStack {
-                    Label("构建版本", systemImage: "hammer")
-                    Spacer()
-                    Text(build).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
                 }
             }
 
@@ -741,7 +787,7 @@ struct SettingsView: View {
                                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                                         .monospacedDigit()
                                         .foregroundStyle(Color.accentColor)
-                                        .frame(width: 20, alignment: .trailing)
+                                        .frame(width: 32, alignment: .trailing)
                                     Text(entry)
                                         .font(.system(size: 12))
                                         .textSelection(.enabled)
@@ -752,6 +798,57 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
+            }
+
+            SettingsCard(title: "支持开发者", subtitle: "", icon: "heart") {
+                Text("如果薪资时钟对你有帮助，欢迎自愿打赏支持后续开发。")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                HStack(alignment: .top, spacing: 12) {
+                    donationCode(title: "微信收款码", imageName: "WeChatDonation")
+                    donationCode(title: "支付宝收款码", imageName: "AlipayDonation")
+                }
+                Text("打赏完全自愿，不影响任何功能使用。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func donationCode(title: String, imageName: String) -> some View {
+        VStack(spacing: 8) {
+            Image(imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 148, height: 220)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .accessibilityLabel(title)
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var configurationTransferSection: some View {
+        SettingsCard(title: "配置导入与导出", subtitle: "", icon: "arrow.left.arrow.right") {
+            HStack(spacing: 12) {
+                Button {
+                    showingConfigExporter = true
+                } label: {
+                    Label("导出配置", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.bordered)
+                Button {
+                    showingConfigImporter = true
+                } label: {
+                    Label("导入配置", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.bordered)
+                HelpPopover(
+                    title: "配置文件说明",
+                    message: "导出为 JSON 文件，可用于备份或迁移到另一台 Mac。包含薪资、工作时间、家庭成员、显示偏好、提醒和愿望清单。导入会覆盖当前配置，操作前建议先导出备份。历史加班记录、休息记录和 macOS 通知权限不包含在配置文件中。"
+                )
             }
         }
     }
@@ -1028,7 +1125,7 @@ struct SettingsView: View {
                 ("进度条样式", "进度条、样式、渐变、分段、圆角、细线", "进入“桌面显示 → 动画与进度”，可选择圆角实心、渐变、分段或细线。样式选择会自动保存，并同步应用于悬浮窗、家庭成员进度、愿望清单进度和桌面 Widget。", "喜欢简洁显示可选细线；希望更明显区分完成比例可选分段或渐变。"),
                 ("桌面统计项目", "今日进度、已工作、剩余、本周累计、本月累计、时薪、日薪、秒薪、年薪", "在“桌面显示”逐项开启或关闭统计。可控制今日进度、已工作/剩余时间、本周累计、本月累计、时薪、日薪、秒薪和年薪是否展示。开启秒薪后可单独设置秒薪小数位，默认 4 位，范围 0–6 位；不影响金额、时薪和日薪精度。关闭不需要的项目可缩短挂件高度；家庭成员详情遵循相同统计开关。", "只关心今日收入时，可关闭本周、本月、时薪、日薪等项目，让挂件更简洁。"),
                 ("工作时长格式与沙漏", "时分秒、时分、沙漏动画、倒计时", "开启“已工作 / 剩余”后，可选择“时分秒”或“时分”。开启“沙漏动画”会在已工作/剩余时间旁显示动态沙漏；关闭后只显示时间文字。", "需要精确观察秒级变化时选择时分秒；不需要秒级信息时选择时分。"),
-                ("窗口层级与始终置顶", "桌面显示、普通窗口、始终置顶、覆盖其他应用", "在“桌面显示 → 窗口行为”配置窗口层级。默认关闭，挂件位于桌面层级，普通应用窗口会显示在它前面；开启后挂件保持在其他普通应用窗口上方。挂件只属于当前桌面空间，不会自动出现在所有桌面空间。设置即时生效，无需重启。", "日常办公建议关闭；需要随时查看收入时再开启。"),
+                ("窗口层级与始终置顶", "桌面显示、普通窗口、始终置顶、覆盖其他应用、设置窗口", "在“桌面显示 → 窗口行为”配置悬浮挂件层级。默认关闭时，普通应用窗口会显示在挂件前方；开启后挂件保持在其他普通应用窗口上方。挂件只属于当前桌面空间，不会自动出现在所有桌面空间。设置窗口本身使用普通窗口层级，切换到其他应用后会自然后置，不会强制覆盖前台应用。设置即时生效，无需重启。", "日常办公建议关闭挂件置顶；需要随时查看收入时再开启。"),
                 ("紧凑模式与展开", "紧凑模式、鼠标悬停、点击展开、收起", "在“桌面显示”开启“紧凑悬浮模式”。挂件默认收起，鼠标移入后根据挂件所在屏幕的垂直位置自动选择展开方向：位于屏幕下半区时向上展开，位于上半区时向下展开，避免详情超出屏幕边缘；移出后自动收起。点击紧凑挂件可固定展开，再次点击可切换。展开状态下可通过收起图标恢复紧凑显示。", "适合长期放在屏幕边缘：平时只显示核心收入，查看统计时将鼠标移入。"),
                 ("拖动与位置锁定", "拖动、移动、锁定、解锁、窗口位置", "未锁定时，拖动挂件顶部左侧的文字区域即可移动窗口；右侧锁定、隐私和设置按钮仍可正常点击。点击挂件上的锁形按钮，或在“桌面显示”开启“锁定挂件位置”，即可禁止拖动；再次解锁后恢复拖动。位置会随窗口移动保存。", "将挂件拖到屏幕合适位置后点击锁形按钮，避免误触移动。"),
                 ("数字变化动画", "数字滚动、平滑淡变、动画", "在“桌面显示 → 动画与进度”选择“数字滚动”或“平滑淡变”。前者以数字滚动方式呈现收入变化，后者使用淡入淡出过渡。", "偏好稳定、柔和视觉效果时选择平滑淡变；希望突出金额实时变化时选择数字滚动。"),
@@ -1037,10 +1134,12 @@ struct SettingsView: View {
                 ("隐私模式", "隐私、隐藏金额、遮罩、眼睛按钮", "在“通用设置 → 隐私模式”开启隐私模式，或点击挂件上的眼睛按钮快速切换。隐私模式会遮挡本人和家庭成员的收入金额，包括今日、本周、本月、时薪和日薪等金额；工作进度百分比和时间仍可见。", "屏幕共享或演示时开启隐私模式；结束后可再次点击眼睛按钮恢复金额。"),
                 ("主题与背景透明度", "主题、深空、纸感、霓虹、海盐蓝、日落橙、石墨灰、透明度", "进入“通用设置 → 外观”选择深空、纸感、霓虹、海盐蓝、日落橙或石墨灰主题，并拖动背景透明度滑块调整挂件背景。设置立即生效并自动保存。", "深色桌面可选择深空或石墨灰；希望浅色外观可选择纸感。"),
                 ("界面语言", "语言、简体中文、繁体中文、English", "在“通用设置 → 外观”选择简体中文、繁体中文或 English。设置页、桌面挂件、菜单栏和系统通知会跟随语言切换。", "切换语言后无需重启，界面会自动应用所选语言。"),
+                ("摸鱼统计与预估休息", "摸鱼、休息、今日预估休息、每日估算、实际记录、手动记录、有效工时", "在“摸鱼设置”开启统计后，可按类型设置每日预估分钟数，并在悬浮窗或设置页手动记录休息。今日预估休息按类型分别比较每日估算与实际记录，取较大值后汇总，不重复相加。例如上厕所设置 60 分钟、手动记录 30 分钟，计入 60 分钟；实际记录达到 90 分钟时计入 90 分钟。WidgetKit 中尺寸适用的组件也从 App Group 读取休息记录和进行中的休息状态；休息或加班记录变化后会请求刷新。", "每日预估用于日常统计；实际记录高于预估时按实际时长显示，低于预估时仍按预估显示。"),
                 ("下班与加班记录", "下班、继续加班、结束加班、加班时长、加班记录", "到达计划下班时间后，悬浮窗提供“下班”和“继续加班”两个操作。点击“下班”结束当天工作；点击“继续加班”才开始累计加班时间，结束时点击“结束加班”保存本次实际起止时间。记录保存在本机，供后续周、月、年统计和报表导出使用；当前版本尚未提供报表导出界面。", "没有加班时点击“下班”；仍在工作时点击“继续加班”，结束工作后点击“结束加班”。"),
                 ("薪资计算口径与限制", "日薪、时薪、秒薪、今日收入、本周、本月、加班", "日薪按月薪除以当月计薪工作日计算；时薪按日薪除以每日有效工时计算；今日收入按今日有效工作进度估算。本周和本月累计包含已完成工作日收入及今天的实时进度，启用午休时该时段不计薪；关闭午休时按完整上下班时段计算。当前只记录加班时长和起止时间，不计算加班费；请假扣薪和年终奖个税也未单独计算，不支持跨午夜班次。", "若实际工资包含加班费、绩效或请假扣款，挂件数值应视为按当前规则计算的估算值，而不是工资单结算金额。"),
-                ("WidgetKit 桌面小组件", "Widget、桌面小组件、小中大、App Group", "项目包含 WidgetKit 小、中、大尺寸组件源码，与主程序共用薪资计算逻辑，并通过 App Group 共享配置。Widget 刷新由 macOS 系统调度，不保证 100ms 实时更新。当前源码和构建脚本已提供，但完整 Xcode 工程构建、签名、嵌入和系统安装验证仍需完整 Xcode 与开发者签名环境。", "需要使用系统桌面小组件时，先按 README 的 WidgetKit 构建说明完成签名和安装；普通悬浮挂件不依赖 WidgetKit。"),
-                ("设置迁移与数据保存", "自动保存、本地配置、旧版本、迁移、备份", "设置更改会自动保存到本地配置，无需手动保存。应用升级时会为新增配置字段补齐默认值，并迁移旧版本家庭成员的工作日和工作时间配置。重新安装或迁移设备前，建议先备份应用本地配置数据。", "升级后若发现人员工作时间不符合预期，检查本人和各家庭成员的独立设置。")
+                ("WidgetKit 桌面小组件", "Widget、桌面小组件、小中大、App Group、数据刷新、摸鱼记录", "项目包含 WidgetKit 小、中、大、超大尺寸组件源码。主程序与扩展通过同一 App Group 共享薪资配置、休息记录、进行中的休息和加班开始时间；记录变化时主程序会请求 WidgetKit 刷新，扩展按分钟级时间线读取并展示适用数据。刷新由 macOS 系统调度，不保证秒级实时更新。", "若桌面组件暂未显示刚修改的数据，可等待系统刷新；也可移除后重新添加组件，检查主程序与扩展是否使用同一签名团队和 App Group。"),
+                ("设置迁移与数据保存", "自动保存、本地配置、旧版本、迁移、备份", "设置更改会自动保存到本地配置，无需手动保存。应用升级时会为新增配置字段补齐默认值，并迁移旧版本家庭成员的工作日和工作时间配置。重新安装或迁移设备前，建议先备份应用本地配置数据。", "升级后若发现人员工作时间不符合预期，检查本人和各家庭成员的独立设置。"),
+                ("配置导入与导出", "配置备份、JSON、导入配置、导出配置、迁移设备", "进入“通用设置 → 配置导入与导出”，可将当前薪资、工作时间、家庭成员、显示偏好、提醒和愿望清单导出为 JSON 文件，也可以选择 JSON 文件导入。导入前会要求确认并覆盖当前配置；历史加班记录、休息记录和 macOS 通知权限不包含在配置文件中。", "更换 Mac 或重装应用前先导出配置；在新设备选择导入并确认即可恢复配置。导入前建议先备份当前配置。")
             ]
             let filtered = articles.filter { manualSearch.isEmpty || ($0.0 + $0.1 + $0.2 + $0.3).localizedCaseInsensitiveContains(manualSearch) }
             if filtered.isEmpty {

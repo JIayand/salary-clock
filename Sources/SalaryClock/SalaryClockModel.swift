@@ -163,6 +163,7 @@ final class SalaryClockModel: ObservableObject {
         if let workdayClosedDateKey { defaults.set(workdayClosedDateKey, forKey: workdayClosedDateKeyName) }
         else { defaults.removeObject(forKey: workdayClosedDateKeyName) }
         if let data = try? JSONEncoder().encode(overtimeSessions) { defaults.set(data, forKey: overtimeSessionsKey) }
+        WidgetCenter.shared.reloadTimelines(ofKind: "SalaryClockWidget")
     }
 
     func snapshot(for member: FamilySalaryMember) -> SalarySnapshot {
@@ -243,31 +244,14 @@ final class SalaryClockModel: ObservableObject {
     }
 
     func breakSeconds(on date: Date, deductOnly: Bool = false) -> TimeInterval {
-        let calendar = Calendar.current
-        let start = calendar.startOfDay(for: date)
-        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return 0 }
-        let records = breakRecords + (activeBreak.map { [$0] } ?? [])
-        let actualByType = WorkBreakType.allCases.reduce(into: [WorkBreakType: TimeInterval]()) { result, type in
-            result[type] = records.reduce(0) { subtotal, record in
-                guard record.type == type, !deductOnly || record.deductFromWork else { return subtotal }
-                let recordEnd = min(record.endTime ?? now, end)
-                let overlapStart = max(start, record.startTime)
-                let overlapEnd = min(end, recordEnd)
-                return subtotal + max(0, overlapEnd.timeIntervalSince(overlapStart))
-            }
-        }
-        let today = calendar.startOfDay(for: now)
-        let trackingStartDay = settings.effectiveWorkTrackingStartedAt.map { calendar.startOfDay(for: $0) } ?? today
-        let estimateEnabled = settings.effectiveWorkTrackingEnabled && start >= trackingStartDay && start <= today
-            && SalaryCalculator.snapshot(settings: settings, now: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: start) ?? start).isWorkday
-        return WorkBreakType.allCases.reduce(0) { total, type in
-            let actual = actualByType[type] ?? 0
-            let configuredMinutes = deductOnly
-                ? WorkBreakCalculator.estimatedMinutes(for: type, settings: settings)
-                : WorkBreakCalculator.configuredMinutes(for: type, settings: settings)
-            let estimate = estimateEnabled ? Double(configuredMinutes) * 60 : 0
-            return total + max(actual, estimate)
-        }
+        WorkBreakCalculator.combinedBreakSeconds(
+            records: breakRecords,
+            activeRecord: activeBreak,
+            now: now,
+            on: date,
+            settings: settings,
+            deductOnly: deductOnly
+        )
     }
 
     var todayBreakSeconds: TimeInterval { breakSeconds(on: now) }
@@ -361,6 +345,7 @@ final class SalaryClockModel: ObservableObject {
         } else {
             defaults.removeObject(forKey: activeBreakKey)
         }
+        WidgetCenter.shared.reloadTimelines(ofKind: "SalaryClockWidget")
     }
 
     func configureAfterWorkReminder() {

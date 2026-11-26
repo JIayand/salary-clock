@@ -376,7 +376,8 @@ final class SettingsWindowController {
         panel.isRestorable = false
         panel.isMovableByWindowBackground = true
         panel.center()
-        panel.level = .floating
+        // 设置窗口使用普通窗口层级：切换到其他应用后应由前台应用覆盖，不常驻置顶。
+        panel.level = .normal
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window = panel

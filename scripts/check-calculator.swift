@@ -178,6 +178,38 @@ struct CalculatorChecks {
         )
         precondition(abs(actualExceedsEstimate - 4500) < 0.01,
                      "实际休息超过每日估算时，应按实际时长扣除")
+        var displayEstimateSettings = estimateSettings
+        displayEstimateSettings.estimatedRestroomBreakMinutes = 60
+        displayEstimateSettings.estimatedPhoneBreakMinutes = 0
+        displayEstimateSettings.estimatedShortBreakMinutes = 0
+        displayEstimateSettings.estimatedMealBreakMinutes = 0
+        displayEstimateSettings.estimatedOtherBreakMinutes = 0
+        let halfHourRestroomRecord = WorkBreakRecord(
+            id: UUID(), type: .restroom,
+            startTime: date(2026, 11, 24, 10),
+            endTime: date(2026, 11, 24, 10, 30),
+            deductFromWork: true
+        )
+        let estimatedOrActual = WorkBreakCalculator.combinedBreakSeconds(
+            records: [halfHourRestroomRecord], activeRecord: nil,
+            now: date(2026, 11, 24, 18), on: date(2026, 11, 24),
+            settings: displayEstimateSettings, calendar: calendar
+        )
+        precondition(abs(estimatedOrActual - 3600) < 0.01,
+                     "上厕所每日估算 60 分钟、实际记录 30 分钟时，今日预估休息应为 60 分钟而非 90 分钟")
+        let longerRestroomRecord = WorkBreakRecord(
+            id: UUID(), type: .restroom,
+            startTime: date(2026, 11, 24, 10),
+            endTime: date(2026, 11, 24, 11, 30),
+            deductFromWork: true
+        )
+        let actualOverridesEstimate = WorkBreakCalculator.combinedBreakSeconds(
+            records: [longerRestroomRecord], activeRecord: nil,
+            now: date(2026, 11, 24, 18), on: date(2026, 11, 24),
+            settings: displayEstimateSettings, calendar: calendar
+        )
+        precondition(abs(actualOverridesEstimate - 5400) < 0.01,
+                     "实际记录超过每日估算时，今日预估休息应按实际记录时长计入")
         let partialDayEstimate = WorkBreakCalculator.deductedWorkSeconds(
             records: [], activeRecord: nil,
             now: date(2026, 11, 24, 10), on: date(2026, 11, 24),
