@@ -72,7 +72,10 @@ final class SalaryClockModel: ObservableObject {
         loadOvertimeState(sharedDefaults: sharedDefaults)
         closeBreakAtDayBoundaryIfNeeded()
         closeOvertimeAtDayBoundaryIfNeeded()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        // A menu (for example, the floating widget's “开始休息” menu) switches
+        // the main run loop into event-tracking mode. Register in .common so
+        // live salary/progress updates continue while the menu is open.
+        let clockTimer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
                 self.now = Date()
@@ -80,9 +83,11 @@ final class SalaryClockModel: ObservableObject {
                 self.closeOvertimeAtDayBoundaryIfNeeded()
             }
         }
+        timer = clockTimer
+        RunLoop.main.add(clockTimer, forMode: .common)
         configureAfterWorkReminder()
-        // 启动时主动请求一次 WidgetKit 同步，避免组件继续显示上次运行留下的旧快照。
-        WidgetCenter.shared.reloadTimelines(ofKind: "SalaryClockWidget")
+        // 启动时先原子写入完整共享快照，再请求 WidgetKit 重新读取。
+        syncWidgetSharedState()
     }
 
     var snapshot: SalarySnapshot {
@@ -121,7 +126,6 @@ final class SalaryClockModel: ObservableObject {
         guard canChooseAfterWork else { return }
         overtimeStartedAt = now
         persistOvertimeState()
-        WidgetCenter.shared.reloadTimelines(ofKind: "SalaryClockWidget")
     }
 
     func endOvertime() {
@@ -136,7 +140,6 @@ final class SalaryClockModel: ObservableObject {
         overtimeStartedAt = nil
         workdayClosedDateKey = ChinaWorkCalendar.dateKey(endedAt, calendar: .current)
         persistOvertimeState()
-        WidgetCenter.shared.reloadTimelines(ofKind: "SalaryClockWidget")
     }
 
     private func closeOvertimeAtDayBoundaryIfNeeded() {
@@ -163,7 +166,7 @@ final class SalaryClockModel: ObservableObject {
         if let workdayClosedDateKey { defaults.set(workdayClosedDateKey, forKey: workdayClosedDateKeyName) }
         else { defaults.removeObject(forKey: workdayClosedDateKeyName) }
         if let data = try? JSONEncoder().encode(overtimeSessions) { defaults.set(data, forKey: overtimeSessionsKey) }
-        WidgetCenter.shared.reloadTimelines(ofKind: "SalaryClockWidget")
+        syncWidgetSharedState()
     }
 
     func snapshot(for member: FamilySalaryMember) -> SalarySnapshot {
@@ -345,7 +348,7 @@ final class SalaryClockModel: ObservableObject {
         } else {
             defaults.removeObject(forKey: activeBreakKey)
         }
-        WidgetCenter.shared.reloadTimelines(ofKind: "SalaryClockWidget")
+        syncWidgetSharedState()
     }
 
     func configureAfterWorkReminder() {
@@ -486,6 +489,20 @@ final class SalaryClockModel: ObservableObject {
         guard let data = try? JSONEncoder().encode(settings) else { return }
         UserDefaults(suiteName: appGroupID)?.set(data, forKey: storageKey)
         UserDefaults.standard.set(data, forKey: storageKey)
+        syncWidgetSharedState()
+    }
+
+    @discardableResult
+    private func syncWidgetSharedState() -> Bool {
+        // Do not make WidgetKit depend on cross-process CFPrefs suite reads.
+        // Replace one complete snapshot atomically before asking WidgetKit to refresh.
+        let didWrite = SalaryClockWidgetSharedStore.write(
+            settings: settings,
+            breakRecords: breakRecords,
+            activeBreak: activeBreak,
+            overtimeStartedAt: overtimeStartedAt
+        )
         WidgetCenter.shared.reloadTimelines(ofKind: "SalaryClockWidget")
+        return didWrite
     }
 }

@@ -6,7 +6,10 @@ struct SettingsView: View {
     @State private var selectedCategory = "薪资与家庭"
     @State private var selectedTaxProfile = "self"
     @State private var manualSearch = ""
+    @State private var expandedManualCategories: Set<String> = ["快速入门"]
     @State private var selectedChangelogVersion: String?
+    @State private var expandedChangelogMajors: Set<String> = []
+    @State private var isChangelogTextExpanded = false
     @State private var showingConfigExporter = false
     @State private var showingConfigImporter = false
     @State private var pendingImportedSettings: SalarySettings?
@@ -705,8 +708,8 @@ struct SettingsView: View {
                         .frame(width: 52, height: 52)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("薪资时钟").font(.system(size: 15, weight: .semibold))
-                        Text("Salary Clock").font(.system(size: 10)).foregroundStyle(.secondary)
+                        Text("Salary Clock").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
+                        Text("macOS 薪资与收入统计工具").font(.system(size: 10)).foregroundStyle(.tertiary)
                     }
                     Spacer()
                 }
@@ -727,10 +730,15 @@ struct SettingsView: View {
                             let items = groupedVersions[major] ?? []
                             DisclosureGroup(
                                 isExpanded: Binding(
-                                    get: { selectedVersion?.split(separator: ".").first.map(String.init) == major },
+                                    get: { expandedChangelogMajors.contains(major) },
                                     set: { expanded in
-                                        if expanded, let first = items.first {
-                                            selectedChangelogVersion = first.version
+                                        if expanded {
+                                            expandedChangelogMajors.insert(major)
+                                            if let first = items.first, selectedVersion == nil {
+                                                selectedChangelogVersion = first.version
+                                            }
+                                        } else {
+                                            expandedChangelogMajors.remove(major)
                                         }
                                     }
                                 )
@@ -739,6 +747,7 @@ struct SettingsView: View {
                                     ForEach(items, id: \.version) { item in
                                         Button {
                                             selectedChangelogVersion = item.version
+                                            isChangelogTextExpanded = false
                                         } label: {
                                             HStack {
                                                 Text("v\(item.version)")
@@ -780,19 +789,46 @@ struct SettingsView: View {
                     }
                     Divider()
                     if let selectedContent {
-                        VStack(alignment: .leading, spacing: 9) {
-                            ForEach(Array(changelogEntries(from: selectedContent).enumerated()), id: \.offset) { index, entry in
-                                HStack(alignment: .firstTextBaseline, spacing: 9) {
-                                    Text("\(index + 1).")
-                                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                        .monospacedDigit()
-                                        .foregroundStyle(Color.accentColor)
-                                        .frame(width: 32, alignment: .trailing)
-                                    Text(entry)
-                                        .font(.system(size: 12))
-                                        .textSelection(.enabled)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                        let entries = changelogEntries(from: selectedContent)
+                        let numberedText = entries.enumerated().map { index, entry in
+                            "\(index + 1).  \(entry)"
+                        }.joined(separator: "\n\n")
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text(numberedText)
+                                .font(.system(size: 12))
+                                .lineSpacing(3)
+                                .lineLimit(isChangelogTextExpanded ? nil : 5)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .overlay(alignment: .bottom) {
+                                    if !isChangelogTextExpanded && entries.count > 5 {
+                                        LinearGradient(
+                                            colors: [Color(nsColor: .controlBackgroundColor).opacity(0), Color(nsColor: .controlBackgroundColor)],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                        .frame(height: 30)
+                                        .allowsHitTesting(false)
+                                    }
                                 }
+                            if entries.count > 5 {
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.22)) {
+                                        isChangelogTextExpanded.toggle()
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text(isChangelogTextExpanded ? "收起" : "点击展开")
+                                        Image(systemName: isChangelogTextExpanded ? "chevron.up" : "chevron.down")
+                                            .font(.system(size: 9, weight: .semibold))
+                                    }
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(Color.accentColor)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 5)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1099,7 +1135,7 @@ struct SettingsView: View {
     }
 
     private var manualSection: some View {
-        SettingsCard(title: "操作手册", subtitle: "", icon: "book.closed") {
+        SettingsCard(title: "使用指南", subtitle: "", icon: "book.closed") {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 TextField("搜索功能，例如：双休、沙漏、隐私、成员", text: $manualSearch)
@@ -1134,32 +1170,105 @@ struct SettingsView: View {
                 ("隐私模式", "隐私、隐藏金额、遮罩、眼睛按钮", "在“通用设置 → 隐私模式”开启隐私模式，或点击挂件上的眼睛按钮快速切换。隐私模式会遮挡本人和家庭成员的收入金额，包括今日、本周、本月、时薪和日薪等金额；工作进度百分比和时间仍可见。", "屏幕共享或演示时开启隐私模式；结束后可再次点击眼睛按钮恢复金额。"),
                 ("主题与背景透明度", "主题、深空、纸感、霓虹、海盐蓝、日落橙、石墨灰、透明度", "进入“通用设置 → 外观”选择深空、纸感、霓虹、海盐蓝、日落橙或石墨灰主题，并拖动背景透明度滑块调整挂件背景。设置立即生效并自动保存。", "深色桌面可选择深空或石墨灰；希望浅色外观可选择纸感。"),
                 ("界面语言", "语言、简体中文、繁体中文、English", "在“通用设置 → 外观”选择简体中文、繁体中文或 English。设置页、桌面挂件、菜单栏和系统通知会跟随语言切换。", "切换语言后无需重启，界面会自动应用所选语言。"),
-                ("摸鱼统计与预估休息", "摸鱼、休息、今日预估休息、每日估算、实际记录、手动记录、有效工时", "在“摸鱼设置”开启统计后，可按类型设置每日预估分钟数，并在悬浮窗或设置页手动记录休息。今日预估休息按类型分别比较每日估算与实际记录，取较大值后汇总，不重复相加。例如上厕所设置 60 分钟、手动记录 30 分钟，计入 60 分钟；实际记录达到 90 分钟时计入 90 分钟。WidgetKit 中尺寸适用的组件也从 App Group 读取休息记录和进行中的休息状态；休息或加班记录变化后会请求刷新。", "每日预估用于日常统计；实际记录高于预估时按实际时长显示，低于预估时仍按预估显示。"),
+                ("摸鱼统计与预估休息", "摸鱼、休息、今日预估休息、每日估算、实际记录、手动记录、有效工时", "在“摸鱼设置”开启统计后，可按类型设置每日预估分钟数，并在悬浮窗或设置页手动记录休息。悬浮窗的实时计时在打开“开始休息”菜单和选择休息类型期间也会持续运行，不会因此暂停收入金额或进度。今日预估休息按类型分别比较每日估算与实际记录，取较大值后汇总，不重复相加。例如上厕所设置 60 分钟、手动记录 30 分钟，计入 60 分钟；实际记录达到 90 分钟时计入 90 分钟。WidgetKit 中尺寸适用的组件也从 App Group 读取休息记录和进行中的休息状态；休息或加班记录变化后会请求刷新。", "每日预估用于日常统计；实际记录高于预估时按实际时长显示，低于预估时仍按预估显示。"),
                 ("下班与加班记录", "下班、继续加班、结束加班、加班时长、加班记录", "到达计划下班时间后，悬浮窗提供“下班”和“继续加班”两个操作。点击“下班”结束当天工作；点击“继续加班”才开始累计加班时间，结束时点击“结束加班”保存本次实际起止时间。记录保存在本机，供后续周、月、年统计和报表导出使用；当前版本尚未提供报表导出界面。", "没有加班时点击“下班”；仍在工作时点击“继续加班”，结束工作后点击“结束加班”。"),
                 ("薪资计算口径与限制", "日薪、时薪、秒薪、今日收入、本周、本月、加班", "日薪按月薪除以当月计薪工作日计算；时薪按日薪除以每日有效工时计算；今日收入按今日有效工作进度估算。本周和本月累计包含已完成工作日收入及今天的实时进度，启用午休时该时段不计薪；关闭午休时按完整上下班时段计算。当前只记录加班时长和起止时间，不计算加班费；请假扣薪和年终奖个税也未单独计算，不支持跨午夜班次。", "若实际工资包含加班费、绩效或请假扣款，挂件数值应视为按当前规则计算的估算值，而不是工资单结算金额。"),
-                ("WidgetKit 桌面小组件", "Widget、桌面小组件、小中大、App Group、数据刷新、摸鱼记录", "项目包含 WidgetKit 小、中、大、超大尺寸组件源码。主程序与扩展通过同一 App Group 共享薪资配置、休息记录、进行中的休息和加班开始时间；记录变化时主程序会请求 WidgetKit 刷新，扩展按分钟级时间线读取并展示适用数据。刷新由 macOS 系统调度，不保证秒级实时更新。", "若桌面组件暂未显示刚修改的数据，可等待系统刷新；也可移除后重新添加组件，检查主程序与扩展是否使用同一签名团队和 App Group。"),
+                ("WidgetKit 桌面小组件", "Widget、桌面小组件、小中大、App Group、数据刷新、手动刷新、AppIntent、摸鱼记录", "项目包含 WidgetKit 小、中、大、超大尺寸组件源码。主程序将薪资配置、休息记录、进行中的休息和加班状态合并为 App Group 内的一份 JSON 快照并原子写入；Widget 每次生成时间线时读取同一份快照。桌面 Widget 和悬浮窗均不提供手动刷新按钮；主程序在配置、休息或加班记录变化时自动写入完整快照并请求 WidgetKit 更新。已工作、剩余及加班时长使用系统动态计时文本；收入金额、工作百分比和进度条由组件内 TimelineView 按当前时间重新计算。系统可能节流实际更新频率，不保证每秒必达。若共享容器或快照读取失败，扩展会记录诊断日志并安全回退到默认值。", "WidgetKit 的实际刷新时机由 macOS 系统调度，可能延迟；当前不提供手动刷新入口。若长期未同步，检查主程序与扩展是否使用同一签名团队和 App Group。"),
                 ("设置迁移与数据保存", "自动保存、本地配置、旧版本、迁移、备份", "设置更改会自动保存到本地配置，无需手动保存。应用升级时会为新增配置字段补齐默认值，并迁移旧版本家庭成员的工作日和工作时间配置。重新安装或迁移设备前，建议先备份应用本地配置数据。", "升级后若发现人员工作时间不符合预期，检查本人和各家庭成员的独立设置。"),
                 ("配置导入与导出", "配置备份、JSON、导入配置、导出配置、迁移设备", "进入“通用设置 → 配置导入与导出”，可将当前薪资、工作时间、家庭成员、显示偏好、提醒和愿望清单导出为 JSON 文件，也可以选择 JSON 文件导入。导入前会要求确认并覆盖当前配置；历史加班记录、休息记录和 macOS 通知权限不包含在配置文件中。", "更换 Mac 或重装应用前先导出配置；在新设备选择导入并确认即可恢复配置。导入前建议先备份当前配置。")
             ]
             let filtered = articles.filter { manualSearch.isEmpty || ($0.0 + $0.1 + $0.2 + $0.3).localizedCaseInsensitiveContains(manualSearch) }
+            let categoryByTitle: [String: String] = [
+                "首次使用与自动保存": "快速入门",
+                "本人薪资与主显示": "薪资与考勤", "金额与百分比精度": "薪资与考勤",
+                "每周工作制度": "薪资与考勤", "法定节假日与调休": "薪资与考勤",
+                "上下班与午休时间": "薪资与考勤", "税后工资估算": "薪资与考勤",
+                "家庭成员管理": "薪资与考勤", "薪资计算口径与限制": "薪资与考勤",
+                "数字千位分隔与直接输入": "薪资与考勤",
+                "进度条样式": "悬浮窗与桌面显示", "桌面统计项目": "悬浮窗与桌面显示",
+                "工作时长格式与沙漏": "悬浮窗与桌面显示", "窗口层级与始终置顶": "悬浮窗与桌面显示",
+                "紧凑模式与展开": "悬浮窗与桌面显示", "拖动与位置锁定": "悬浮窗与桌面显示",
+                "数字变化动画": "悬浮窗与桌面显示", "隐私模式": "悬浮窗与桌面显示",
+                "主题与背景透明度": "个性化与数据管理", "界面语言": "个性化与数据管理",
+                "设置迁移与数据保存": "个性化与数据管理", "配置导入与导出": "个性化与数据管理",
+                "愿望清单": "休息、提醒与目标", "下班提醒与系统通知": "休息、提醒与目标",
+                "摸鱼统计与预估休息": "休息、提醒与目标", "下班与加班记录": "休息、提醒与目标",
+                "WidgetKit 桌面小组件": "桌面组件与同步"
+            ]
+            let manualCategoryNames = ["快速入门", "薪资与考勤", "悬浮窗与桌面显示", "休息、提醒与目标", "桌面组件与同步", "个性化与数据管理"]
+            let groupedArticles = Dictionary(grouping: filtered) { categoryByTitle[$0.0] ?? "其他" }
             if filtered.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").font(.system(size: 22)).foregroundStyle(.tertiary)
                     Text("没有找到相关内容").font(.system(size: 12, weight: .medium))
-                    Text("试试其他关键词").font(.system(size: 10)).foregroundStyle(.secondary)
+                    Text("试试其他关键词或缩短搜索词").font(.system(size: 10)).foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity).padding(.vertical, 24)
             } else {
-                ForEach(Array(filtered.enumerated()), id: \.offset) { _, article in
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text(article.0).font(.system(size: 13, weight: .semibold))
-                        Text(article.2).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                        Label(article.3, systemImage: "lightbulb").font(.system(size: 10)).foregroundStyle(Color.accentColor).fixedSize(horizontal: false, vertical: true)
+                ForEach(manualCategoryNames.filter { groupedArticles[$0] != nil }, id: \.self) { category in
+                    let items = groupedArticles[category] ?? []
+                    DisclosureGroup(
+                        isExpanded: Binding(
+                            get: { manualSearch.isEmpty ? expandedManualCategories.contains(category) : true },
+                            set: { expanded in
+                                if expanded { expandedManualCategories.insert(category) }
+                                else { expandedManualCategories.remove(category) }
+                            }
+                        )
+                    ) {
+                        VStack(alignment: .leading, spacing: 7) {
+                            ForEach(items, id: \.0) { article in
+                                DisclosureGroup {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(article.2)
+                                            .font(.system(size: 11))
+                                            .fixedSize(horizontal: false, vertical: true)
+                                        Label(article.3, systemImage: "lightbulb")
+                                            .font(.system(size: 10))
+                                            .foregroundStyle(Color.accentColor)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .padding(.top, 5)
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(article.0).font(.system(size: 12, weight: .medium))
+                                        Text(article.1).font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1)
+                                    }
+                                    .padding(.vertical, 3)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 8))
+                            }
+                        }
+                        .padding(.top, 7)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: manualCategoryIcon(category))
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 18)
+                            Text(category).font(.system(size: 13, weight: .semibold))
+                            Spacer()
+                            Text("\(items.count) 项").font(.system(size: 10)).foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 5)
                     }
-                    .padding(11)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
+                    .padding(.vertical, 3)
+                    if category != manualCategoryNames.filter({ groupedArticles[$0] != nil }).last {
+                        Divider()
+                    }
                 }
             }
+        }
+    }
+
+    private func manualCategoryIcon(_ category: String) -> String {
+        switch category {
+        case "快速入门": return "flag"
+        case "薪资与考勤": return "yensign.circle"
+        case "悬浮窗与桌面显示": return "rectangle.on.rectangle"
+        case "休息、提醒与目标": return "bell.badge"
+        case "桌面组件与同步": return "square.grid.2x2"
+        default: return "slider.horizontal.3"
         }
     }
 

@@ -1,18 +1,7 @@
 import SwiftUI
 import WidgetKit
 
-private let salaryAppGroup = "WXFKXAFBJ8.salaryclock"
-private let salarySettingsKey = "salary-clock.settings.v1"
-private let salaryBreakRecordsKey = "salary-clock.work-break-records.v1"
-private let salaryActiveBreakKey = "salary-clock.active-work-break.v1"
-private let salaryOvertimeStartedAtKey = "salary-clock.overtime-started-at.v1"
 private let salaryWidgetKind = "SalaryClockWidget"
-
-private struct SalaryClockWidgetSharedState {
-    var breakRecords: [WorkBreakRecord] = []
-    var activeBreak: WorkBreakRecord?
-    var overtimeStartedAt: Date?
-}
 
 struct SalaryClockWidgetEntry: TimelineEntry {
     let date: Date
@@ -23,66 +12,54 @@ struct SalaryClockWidgetEntry: TimelineEntry {
 
 struct SalaryClockWidgetProvider: TimelineProvider {
     func placeholder(in context: Context) -> SalaryClockWidgetEntry {
-        makeEntry(date: Date(), settings: SalarySettings(), sharedState: SalaryClockWidgetSharedState())
+        let sharedData = SalaryClockWidgetSharedData(
+            settings: SalarySettings(), breakRecords: [], activeBreak: nil, overtimeStartedAt: nil
+        )
+        return makeEntry(date: Date(), sharedData: sharedData)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SalaryClockWidgetEntry) -> Void) {
-        completion(makeEntry(date: Date(), settings: loadSettings(), sharedState: loadSharedState()))
+        completion(makeEntry(date: Date(), sharedData: loadSharedData()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SalaryClockWidgetEntry>) -> Void) {
-        let settings = loadSettings()
-        let sharedState = loadSharedState()
+        // Read settings and runtime records together from one atomic shared snapshot.
+        let sharedData = loadSharedData()
         let calendar = Calendar.current
         let now = Date()
         let minuteStart = calendar.dateInterval(of: .minute, for: now)?.start ?? now
 
-        // 预先提供未来 60 分钟的分钟级快照。WidgetKit 可能合并或延后展示，
-        // 因此这是尽可能及时的更新，不代表秒级实时刷新。
+        // WidgetKit schedules these minute-level snapshots; the system may defer them.
         let entries = (0...60).compactMap { offset -> SalaryClockWidgetEntry? in
             guard let date = calendar.date(byAdding: .minute, value: offset, to: minuteStart) else {
                 return nil
             }
-            return makeEntry(date: date, settings: settings, sharedState: sharedState)
+            return makeEntry(date: date, sharedData: sharedData)
         }
 
         let refreshDate = entries.last?.date.addingTimeInterval(60) ?? now.addingTimeInterval(60 * 60)
         completion(Timeline(entries: entries, policy: .after(refreshDate)))
     }
 
-    private func loadSettings() -> SalarySettings {
-        guard let data = UserDefaults(suiteName: salaryAppGroup)?.data(forKey: salarySettingsKey),
-              let settings = try? JSONDecoder().decode(SalarySettings.self, from: data) else {
-            return SalarySettings()
+    private func loadSharedData() -> SalaryClockWidgetSharedData {
+        if let sharedData = SalaryClockWidgetSharedStore.read() {
+            return sharedData
         }
-        return settings
-    }
-
-    private func loadSharedState() -> SalaryClockWidgetSharedState {
-        guard let defaults = UserDefaults(suiteName: salaryAppGroup) else {
-            return SalaryClockWidgetSharedState()
-        }
-        var state = SalaryClockWidgetSharedState()
-        if let data = defaults.data(forKey: salaryBreakRecordsKey),
-           let records = try? JSONDecoder().decode([WorkBreakRecord].self, from: data) {
-            state.breakRecords = records
-        }
-        if let data = defaults.data(forKey: salaryActiveBreakKey),
-           let active = try? JSONDecoder().decode(WorkBreakRecord.self, from: data) {
-            state.activeBreak = active
-        }
-        state.overtimeStartedAt = defaults.object(forKey: salaryOvertimeStartedAtKey) as? Date
-        return state
+        // The host app writes a complete snapshot on every launch. Defaults are
+        // only a safe first-launch/corrupt-file fallback, never a partial merge.
+        return SalaryClockWidgetSharedData(
+            settings: SalarySettings(), breakRecords: [], activeBreak: nil, overtimeStartedAt: nil
+        )
     }
 
     private func makeEntry(
         date: Date,
-        settings: SalarySettings,
-        sharedState: SalaryClockWidgetSharedState
+        sharedData: SalaryClockWidgetSharedData
     ) -> SalaryClockWidgetEntry {
+        let settings = sharedData.settings
         let calculated = SalaryCalculator.snapshot(settings: settings, now: date)
-        let overtimeSeconds = sharedState.overtimeStartedAt.map { max(0, date.timeIntervalSince($0)) } ?? 0
-        let isOvertime = sharedState.overtimeStartedAt != nil
+        let overtimeSeconds = sharedData.overtimeStartedAt.map { max(0, date.timeIntervalSince($0)) } ?? 0
+        let isOvertime = sharedData.overtimeStartedAt != nil
         let snapshot = SalarySnapshot(
             earned: calculated.earned,
             progress: calculated.progress,
@@ -106,8 +83,8 @@ struct SalaryClockWidgetProvider: TimelineProvider {
             annualSalary: calculated.annualSalary
         )
         let todayBreakSeconds = WorkBreakCalculator.combinedBreakSeconds(
-            records: sharedState.breakRecords,
-            activeRecord: sharedState.activeBreak,
+            records: sharedData.breakRecords,
+            activeRecord: sharedData.activeBreak,
             now: date,
             on: date,
             settings: settings
@@ -131,23 +108,60 @@ private struct FamilyWidgetRow: Identifiable {
     let endMinute: Int
 }
 
-/// WidgetKit timeline 已提供未来 60 分钟的分钟级快照。
-/// 不在 Widget 内再嵌套高频 TimelineView，避免重复计算和内容归档导致渲染负担。
+/// WidgetKit 时间线提供配置快照；视图内的 TimelineView 按秒重算金额与工作进度。
+/// 系统可能节流实际刷新频率，因此秒级更新属于尽力而为，不承诺每秒必达。
 struct SalaryClockWidgetView: View {
     let entry: SalaryClockWidgetEntry
 
     var body: some View {
-        SalaryClockWidgetContent(entry: entry)
-            // Widget 扩展必须显式采用系统当前语言环境，不能依赖扩展包的开发语言回退值。
-            .environment(\.locale, Locale.autoupdatingCurrent)
+        // 金额、百分比和进度条也需要随时钟推进；WidgetKit 时间线负责提供配置，
+        // TimelineView 在可用时按秒重算当前工作进度，系统仍可能根据资源策略节流。
+        TimelineView(.periodic(from: entry.date, by: 1)) { context in
+            SalaryClockWidgetContent(entry: entry, now: context.date)
+        }
+        // Widget 扩展必须显式采用系统当前语言环境，不能依赖扩展包的开发语言回退值。
+        .environment(\.locale, Locale.autoupdatingCurrent)
     }
 }
 
 private struct SalaryClockWidgetContent: View {
     @Environment(\.widgetFamily) private var family
     let entry: SalaryClockWidgetEntry
+    let now: Date
 
     private var language: AppLanguage { entry.settings.language }
+
+    /// Recalculate the live values from the same salary rules used by the host app.
+    /// Preserve the explicitly started overtime session carried by the shared snapshot.
+    private var liveSnapshot: SalarySnapshot {
+        let calculated = SalaryCalculator.snapshot(settings: entry.settings, now: now)
+        let isOvertime = entry.snapshot.isOvertime
+        let overtimeSeconds = isOvertime
+            ? max(0, entry.snapshot.overtimeSeconds + now.timeIntervalSince(entry.date))
+            : 0
+        return SalarySnapshot(
+            earned: calculated.earned,
+            progress: calculated.progress,
+            todayWorkSeconds: calculated.todayWorkSeconds,
+            elapsedWorkSeconds: calculated.elapsedWorkSeconds,
+            monthlyWorkdays: calculated.monthlyWorkdays,
+            isWorkday: calculated.isWorkday,
+            isWorkingNow: calculated.isWorkingNow && !isOvertime,
+            remainingSeconds: calculated.remainingSeconds,
+            overtimeSeconds: overtimeSeconds,
+            isOvertime: isOvertime,
+            isPublicHoliday: calculated.isPublicHoliday,
+            isMakeupWorkday: calculated.isMakeupWorkday,
+            dailyRate: calculated.dailyRate,
+            hourlyRate: calculated.hourlyRate,
+            weekEarned: calculated.weekEarned,
+            monthEarned: calculated.monthEarned,
+            tax: calculated.tax,
+            netMonthlySalary: calculated.netMonthlySalary,
+            secondRate: calculated.secondRate,
+            annualSalary: calculated.annualSalary
+        )
+    }
 
     private var foreground: Color {
         switch entry.settings.theme {
@@ -230,7 +244,10 @@ private struct SalaryClockWidgetContent: View {
                 .foregroundStyle(foreground.opacity(0.58))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-            if entry.snapshot.isOvertime { overtimeStatusLine }
+            if entry.settings.showWorkDuration && !liveSnapshot.isOvertime {
+                compactWorkDurationLine
+            }
+            if liveSnapshot.isOvertime { overtimeStatusLine }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -264,6 +281,9 @@ private struct SalaryClockWidgetContent: View {
                     .foregroundStyle(foreground.opacity(0.55))
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
+                if entry.settings.showWorkDuration && !liveSnapshot.isOvertime {
+                    compactWorkDurationLine
+                }
                 if entry.settings.effectiveWorkTrackingEnabled {
                     Text("\(localized("今日预估休息", "今日預估休息", "Estimated break"))  \(duration(entry.todayBreakSeconds))")
                         .font(.system(size: 9, weight: .medium, design: .rounded).monospacedDigit())
@@ -271,7 +291,7 @@ private struct SalaryClockWidgetContent: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
                 }
-                if entry.snapshot.isOvertime { overtimeStatusLine }
+                if liveSnapshot.isOvertime { overtimeStatusLine }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 
@@ -327,11 +347,11 @@ private struct SalaryClockWidgetContent: View {
                 .foregroundStyle(foreground.opacity(0.55))
                 .padding(.top, 9)
 
-            if entry.settings.showWorkDuration && !entry.snapshot.isOvertime {
+            if entry.settings.showWorkDuration && !liveSnapshot.isOvertime {
                 workDurationLine
                     .padding(.top, 11)
             }
-            if entry.snapshot.isOvertime { overtimeStatusLine.padding(.top, 7) }
+            if liveSnapshot.isOvertime { overtimeStatusLine.padding(.top, 7) }
 
             Rectangle()
                 .fill(foreground.opacity(0.12))
@@ -402,10 +422,10 @@ private struct SalaryClockWidgetContent: View {
             if entry.settings.showProgress {
                 progressBar(height: 7)
             }
-            if entry.settings.showWorkDuration && !entry.snapshot.isOvertime {
+            if entry.settings.showWorkDuration && !liveSnapshot.isOvertime {
                 workDurationLine
             }
-            if entry.snapshot.isOvertime { overtimeStatusLine }
+            if liveSnapshot.isOvertime { overtimeStatusLine }
             Text(scheduleText)
                 .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
                 .foregroundStyle(foreground.opacity(0.55))
@@ -464,7 +484,7 @@ private struct SalaryClockWidgetContent: View {
         var rows = [FamilyWidgetRow(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
             name: "本人",
-            snapshot: entry.snapshot,
+            snapshot: liveSnapshot,
             startHour: entry.settings.startHour,
             startMinute: entry.settings.startMinute,
             endHour: entry.settings.endHour,
@@ -493,7 +513,7 @@ private struct SalaryClockWidgetContent: View {
             return FamilyWidgetRow(
                 id: member.id,
                 name: member.name.isEmpty ? "未命名成员" : member.name,
-                snapshot: SalaryCalculator.snapshot(settings: settings, now: entry.date),
+                snapshot: SalaryCalculator.snapshot(settings: settings, now: now),
                 startHour: member.startHour,
                 startMinute: member.startMinute,
                 endHour: member.endHour,
@@ -531,12 +551,16 @@ private struct SalaryClockWidgetContent: View {
                               trackColor: foreground.opacity(0.12), fillColor: accent, height: 5)
             HStack {
                 if row.snapshot.isOvertime {
-                    Text("已加班 \(overtimeText(row.snapshot.overtimeSeconds))")
+                    Text("已加班")
+                        .foregroundStyle(overtimeColor)
+                    Text(timerInterval: (entry.date.addingTimeInterval(-row.snapshot.overtimeSeconds))...Date.distantFuture, countsDown: false)
                         .foregroundStyle(overtimeColor)
                 } else {
-                    Text("已工作 \(duration(row.snapshot.elapsedWorkSeconds))")
+                    Text("已工作")
+                    Text(timerInterval: (entry.date.addingTimeInterval(-row.snapshot.elapsedWorkSeconds))...Date.distantFuture, countsDown: false)
                     Spacer(minLength: 3)
-                    Text("剩余 \(duration(row.snapshot.remainingSeconds))")
+                    Text("剩余")
+                    Text(timerInterval: entry.date...(entry.date.addingTimeInterval(row.snapshot.remainingSeconds)), countsDown: true)
                 }
             }
             .font(.system(size: 9, weight: .medium, design: .rounded).monospacedDigit())
@@ -577,7 +601,7 @@ private struct SalaryClockWidgetContent: View {
     }
 
     private var progressText: String {
-        let percent = NumericFormatting.number(entry.snapshot.progress * 100, fractionDigits: entry.settings.percentDecimals) + "%"
+        let percent = NumericFormatting.number(liveSnapshot.progress * 100, fractionDigits: entry.settings.percentDecimals) + "%"
         return localized("今日进度", "今日進度", "Progress") + "  " + percent
     }
 
@@ -588,32 +612,62 @@ private struct SalaryClockWidgetContent: View {
     }
 
     private var overtimeStatusLine: some View {
-        Text("\(localized("已加班", "已加班", "Overtime"))  \(overtimeText(entry.snapshot.overtimeSeconds))")
-            .font(.system(size: 10, weight: .semibold, design: .rounded).monospacedDigit())
-            .foregroundStyle(overtimeColor)
+        let overtimeStart = now.addingTimeInterval(-liveSnapshot.overtimeSeconds)
+        return HStack(spacing: 4) {
+            Text("\(localized("已加班", "已加班", "Overtime"))")
+            Text(timerInterval: overtimeStart...Date.distantFuture, countsDown: false)
+        }
+        .font(.system(size: 10, weight: .semibold, design: .rounded).monospacedDigit())
+        .foregroundStyle(overtimeColor)
+    }
+
+    /// Text(timerInterval:) is rendered by the system clock and can advance
+    /// between WidgetKit timeline refreshes. Use it in every family, not only large.
+    private var compactWorkDurationLine: some View {
+        let workedStart = now.addingTimeInterval(-liveSnapshot.elapsedWorkSeconds)
+        let workEnd = now.addingTimeInterval(liveSnapshot.remainingSeconds)
+        return HStack(spacing: 3) {
+            Text("\(localized("已工作", "已工作", "Worked"))")
+            Text(timerInterval: workedStart...Date.distantFuture, countsDown: false)
+            Spacer(minLength: 3)
+            Text("\(localized("剩余", "剩餘", "Left"))")
+            Text(timerInterval: now...workEnd, countsDown: true)
+        }
+        .font(.system(size: 9, weight: .medium, design: .rounded).monospacedDigit())
+        .foregroundStyle(foreground.opacity(0.52))
+        .lineLimit(1)
+        .minimumScaleFactor(0.78)
     }
 
     private var workDurationLine: some View {
-        HStack(spacing: 0) {
-            Text("\(localized("已工作", "已工作", "Worked"))  \(duration(entry.snapshot.elapsedWorkSeconds))")
+        let workedStart = now.addingTimeInterval(-liveSnapshot.elapsedWorkSeconds)
+        let workEnd = now.addingTimeInterval(liveSnapshot.remainingSeconds)
+        return HStack(spacing: 0) {
+            HStack(spacing: 3) {
+                Text("\(localized("已工作", "已工作", "Worked"))")
+                Text(timerInterval: workedStart...Date.distantFuture, countsDown: false)
+            }
             Spacer(minLength: 8)
-            Text("\(localized("剩余", "剩餘", "Left"))  \(duration(entry.snapshot.remainingSeconds))")
+            HStack(spacing: 3) {
+                Text("\(localized("剩余", "剩餘", "Left"))")
+                Text(timerInterval: now...workEnd, countsDown: true)
+            }
         }
         .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
         .foregroundStyle(foreground.opacity(0.52))
     }
 
     private func progressBar(height: CGFloat) -> some View {
-        SalaryProgressBar(progress: entry.snapshot.progress, style: entry.settings.progressBarStyle,
+        SalaryProgressBar(progress: liveSnapshot.progress, style: entry.settings.progressBarStyle,
                           trackColor: foreground.opacity(0.13), fillColor: accent, height: height)
     }
 
     private var visibleStats: [(String, String)] {
         let all: [(String, String, Bool)] = [
-            (localized("本周收入", "本週收入", "This week"), displayMoney(entry.snapshot.weekEarned), entry.settings.showWeekEarned),
-            (localized("本月收入", "本月收入", "This month"), displayMoney(entry.snapshot.monthEarned), entry.settings.showMonthEarned),
-            (localized("时薪", "時薪", "Hourly rate"), displayMoney(entry.snapshot.hourlyRate), entry.settings.showHourlyRate),
-            (localized("日薪", "日薪", "Daily rate"), displayMoney(entry.snapshot.dailyRate), entry.settings.showDailyRate),
+            (localized("本周收入", "本週收入", "This week"), displayMoney(liveSnapshot.weekEarned), entry.settings.showWeekEarned),
+            (localized("本月收入", "本月收入", "This month"), displayMoney(liveSnapshot.monthEarned), entry.settings.showMonthEarned),
+            (localized("时薪", "時薪", "Hourly rate"), displayMoney(liveSnapshot.hourlyRate), entry.settings.showHourlyRate),
+            (localized("日薪", "日薪", "Daily rate"), displayMoney(liveSnapshot.dailyRate), entry.settings.showDailyRate),
             (localized("今日预估休息", "今日預估休息", "Estimated break"), duration(entry.todayBreakSeconds), entry.settings.effectiveWorkTrackingEnabled)
         ]
         return all.filter { $0.2 }.map { ($0.0, $0.1) }
@@ -642,9 +696,9 @@ private struct SalaryClockWidgetContent: View {
     private var primaryValue: String {
         if entry.settings.privacyMode { return "¥••••" }
         if entry.settings.mode == .percent {
-            return NumericFormatting.number(entry.snapshot.progress * 100, fractionDigits: entry.settings.percentDecimals) + "%"
+            return NumericFormatting.number(liveSnapshot.progress * 100, fractionDigits: entry.settings.percentDecimals) + "%"
         }
-        return NumericFormatting.currency(entry.snapshot.earned, fractionDigits: entry.settings.decimals)
+        return NumericFormatting.currency(liveSnapshot.earned, fractionDigits: entry.settings.decimals)
     }
 
     private var overtimeColor: Color { Color(red: 1.0, green: 0.29, blue: 0.31) }
